@@ -1,0 +1,121 @@
+:root {
+  --bg: #000000;
+  --text: #ffffff;
+  --text2: #b5b5b5;
+  --muted: #6e6e6e;
+  --line: #1e1e1e;
+  --hover: #111111;
+  --radius: 8px;
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Courier New", Courier, monospace;
+  letter-spacing: 0.2px;
+}
+
+a {
+  color: var(--text2);
+  text-decoration: none;
+}
+
+a:hover { color: var(--text); }
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.nav {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.h1 { font-size: 20px; margin: 0 0 6px 0; font-weight: 400; }
+.meta { color: var(--muted); font-size: 12px; margin: 0 0 14px 0; }
+
+.label {
+  color: var(--text2);
+  font-size: 12px;
+  margin-top: 10px;
+  text-transform: lowercase;
+}
+
+.prompt {
+  font-size: 32px;
+  line-height: 1.1;
+  margin: 10px 0 12px 0;
+  font-weight: 400;
+}
+
+.value { margin: 4px 0 0 0; }
+
+button, input, select { font-family: inherit; font-size: 14px; }
+
+button {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--line);
+  padding: 12px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+button:hover { background: var(--hover); }
+
+button.secondary { color: var(--text2); }
+
+input, select {
+  width: 100%;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--line);
+  padding: 10px 12px;
+  border-radius: 10px;
+}
+
+img.photo {
+  width: 100%;
+  border-radius: var(--radius);
+  display: block;
+}
+
+.grid { display: grid; gap: 10px; }
+
+.small { color: var(--text2); font-size: 12px; }
+
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.day {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 0;
+  text-align: center;
+  color: var(--text2);
+}
+
+.day.done { color: var(--text); }
+.day.dim { opacity: 0.35; }

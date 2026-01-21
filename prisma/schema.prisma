@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  name      String?
+  timezone  String   @default("America/New_York")
+
+  photos    DailyPhoto[]
+}
+
+model Prompt {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  title      String
+  constraint String?
+  twist      String?
+  tags       String?  // comma-separated for MVP
+  active     Boolean  @default(true)
+
+  dailyAssignments DailyPromptAssignment[]
+  photos           DailyPhoto[]
+}
+
+model DailyPromptAssignment {
+  id       String @id @default(cuid())
+  dateKey  String // YYYY-MM-DD in user's timezone
+  promptId String
+  prompt   Prompt @relation(fields: [promptId], references: [id])
+
+  @@unique([dateKey])
+}
+
+model DailyPhoto {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  dateKey   String   // YYYY-MM-DD in user's timezone
+  imagePath String
+  caption   String?
+  mood      String?
+
+  userId   String
+  user     User   @relation(fields: [userId], references: [id])
+
+  promptId String?
+  prompt   Prompt? @relation(fields: [promptId], references: [id])
+
+  @@unique([userId, dateKey])
+}
