@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { upload } from "@vercel/blob/client";
 
 type Prompt = { id: string; title: string; constraint?: string | null; twist?: string | null };
 type Photo = { imagePath: string; caption?: string | null; mood?: string | null } | null;
@@ -17,7 +18,15 @@ export default function TodayPage() {
 
   async function load() {
     setLoading(true);
+
     const res = await fetch("/api/today", { cache: "no-store" });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      alert(`failed to load: ${res.status} ${text}`);
+      setLoading(false);
+      return;
+    }
+
     const data = await res.json();
     setTodayKey(data.todayKey);
     setPrompt(data.prompt);
@@ -27,25 +36,48 @@ export default function TodayPage() {
     setLoading(false);
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    void load();
+  }, []);
 
   async function onUpload(file: File) {
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("caption", caption);
-    fd.append("mood", mood);
-
-    const res = await fetch("/api/photo/upload", { method: "POST", body: fd });
-    if (!res.ok) {
-      const msg = await res.text();
-      alert(`upload failed: ${msg}`);
+    // 1) Upload directly to Vercel Blob (avoids Vercel Function payload limits)
+    let blobUrl: string;
+    try {
+      const blob = await upload(file.name, file, {
+        access: "public",
+        handleUploadUrl: "/api/blob",
+      });
+      blobUrl = blob.url;
+    } catch (e: any) {
+      alert(`blob upload failed: ${e?.message ?? String(e)}`);
       return;
     }
+
+    // 2) Save metadata + blob URL to your DB via a small JSON request
+    const res = await fetch("/api/photo/upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        imagePath: blobUrl,
+        caption,
+        mood,
+      }),
+    });
+
+    if (!res.ok) {
+      const msg = await res.text().catch(() => "");
+      alert(`upload failed: ${res.status} ${msg}`);
+      return;
+    }
+
     await load();
   }
 
   async function getStuckTip() {
     const res = await fetch("/api/stuck", { cache: "no-store" });
+    if (!res.ok) return;
+
     const data = await res.json();
     setTip(data.tip);
   }
@@ -86,7 +118,11 @@ export default function TodayPage() {
             <button className="secondary" onClick={getStuckTip}>
               i’m stuck →
             </button>
-            {tip && <p className="small" style={{ marginTop: 10 }}><em>{tip}</em></p>}
+            {tip && (
+              <p className="small" style={{ marginTop: 10 }}>
+                <em>{tip}</em>
+              </p>
+            )}
           </div>
         </section>
       )}
@@ -98,10 +134,14 @@ export default function TodayPage() {
           <div style={{ marginTop: 10 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img className="photo" src={photo.imagePath} alt="today" />
-            <p className="small" style={{ marginTop: 10 }}>you can replace this until midnight</p>
+            <p className="small" style={{ marginTop: 10 }}>
+              you can replace this until midnight
+            </p>
           </div>
         ) : (
-          <p className="small" style={{ marginTop: 10 }}>no photo yet. upload one to lock in your day.</p>
+          <p className="small" style={{ marginTop: 10 }}>
+            no photo yet. upload one to lock in your day.
+          </p>
         )}
 
         <div className="grid" style={{ marginTop: 12 }}>
