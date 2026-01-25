@@ -1,27 +1,40 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { upload } from "@vercel/blob/client";
 
-type Prompt = { id: string; title: string; constraint?: string | null; twist?: string | null };
-type Photo = {
-  imagePath: string;
-  caption?: string | null;
-  mood?: string | null;
-  promptId?: string | null;
-} | null;
+type Prompt = {
+  id: string;
+  title: string;
+  constraint?: string | null;
+  twist?: string | null;
+};
 
-function getOrCreateUserId() {
+type Photo =
+  | {
+      imagePath: string;
+      caption?: string | null;
+      mood?: string | null;
+      promptId?: string | null;
+    }
+  | null;
+
+function getOrCreateUserId(): string {
+  // localStorage only exists in the browser
+  if (typeof window === "undefined") return "";
+
   const k = "dailyframe_user_id";
-  const existing = localStorage.getItem(k);
+  const existing = window.localStorage.getItem(k);
   if (existing) return existing;
 
-  const fresh = `user_${crypto.randomUUID()}`;
-  localStorage.setItem(k, fresh);
+  const fresh = `user_${window.crypto.randomUUID()}`;
+  window.localStorage.setItem(k, fresh);
   return fresh;
 }
 
 export default function TodayPage() {
+  const [userId, setUserId] = useState<string>("");
+
   const [loading, setLoading] = useState(true);
   const [todayKey, setTodayKey] = useState("");
   const [prompt, setPrompt] = useState<Prompt | null>(null);
@@ -33,27 +46,32 @@ export default function TodayPage() {
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [status, setStatus] = useState<string>("");
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const userId = useMemo(() => {
-    return getOrCreateUserId();
+  // Create/read user id ONLY on client after mount
+  useEffect(() => {
+    setUserId(getOrCreateUserId());
   }, []);
 
-  async function load() {
+  async function load(uid: string) {
+    if (!uid) return;
+
     setLoading(true);
+    setStatus("");
 
     try {
       const res = await fetch("/api/today", {
         cache: "no-store",
-        headers: { "x-user-id": userId },
+        headers: { "x-user-id": uid },
       });
 
       const text = await res.text();
 
       if (!res.ok) {
         console.error("LOAD /api/today failed", res.status, text);
-        alert(`load failed: ${res.status}\n${text.slice(0, 300)}`);
+        setStatus(`load failed: ${res.status} ${text.slice(0, 200)}`);
         setLoading(false);
         return;
       }
@@ -61,30 +79,32 @@ export default function TodayPage() {
       let data: any;
       try {
         data = JSON.parse(text);
-      } catch (e) {
+      } catch {
         console.error("LOAD /api/today returned non-JSON", text);
-        alert(`load returned non-JSON:\n${text.slice(0, 300)}`);
+        setStatus(`load returned non-JSON: ${text.slice(0, 200)}`);
         setLoading(false);
         return;
       }
 
-      setTodayKey(data.todayKey);
-      setPrompt(data.prompt);
-      setPhoto(data.photo);
+      setTodayKey(data.todayKey ?? "");
+      setPrompt(data.prompt ?? null);
+      setPhoto(data.photo ?? null);
       setCaption(data.photo?.caption ?? "");
       setMood(data.photo?.mood ?? "");
       setLoading(false);
     } catch (e: any) {
       console.error("LOAD error", e);
-      alert(`load error: ${e?.message ?? String(e)}`);
+      setStatus(`load error: ${e?.message ?? String(e)}`);
       setLoading(false);
     }
   }
 
+  // Load once userId exists
   useEffect(() => {
-    void load();
+    if (!userId) return;
+    void load(userId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [userId]);
 
   async function getStuckTip() {
     try {
@@ -92,27 +112,40 @@ export default function TodayPage() {
       const text = await res.text();
 
       if (!res.ok) {
-        alert(`stuck failed: ${res.status}\n${text.slice(0, 200)}`);
+        setStatus(`stuck failed: ${res.status} ${text.slice(0, 200)}`);
         return;
       }
 
       const data = JSON.parse(text);
-      setTip(data.tip);
+      setTip(data.tip ?? "");
     } catch (e: any) {
-      alert(`stuck error: ${e?.message ?? String(e)}`);
+      setStatus(`stuck error: ${e?.message ?? String(e)}`);
     }
   }
 
   async function doUpload() {
-    if (!selectedFile) return;
+    if (!selectedFile) {
+      setStatus("no file selected");
+      return;
+    }
+    if (!userId) {
+      setStatus("userId not ready yet — refresh and try again");
+      return;
+    }
 
     setUploading(true);
+    setStatus(
+      `uploading: ${selectedFile.name} (${selectedFile.type || "unknown"}, ${selectedFile.size} bytes)`
+    );
+
     try {
       // 1) Upload image to Vercel Blob
       const blob = await upload(selectedFile.name, selectedFile, {
         access: "public",
         handleUploadUrl: "/api/blob",
       });
+
+      setStatus(`blob uploaded: ${blob.url}`);
 
       // 2) Save metadata in DB (per-user)
       const res = await fetch("/api/photo/upload", {
@@ -131,22 +164,26 @@ export default function TodayPage() {
 
       const text = await res.text();
       if (!res.ok) {
-        alert(`upload failed: ${res.status}\n${text.slice(0, 300)}`);
+        setStatus(`db save failed: ${res.status} ${text.slice(0, 250)}`);
         return;
       }
+
+      setStatus("saved ✓");
 
       // reset input so same file can be chosen again
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
 
-      await load();
+      await load(userId);
     } catch (e: any) {
-      alert(`upload error: ${e?.message ?? String(e)}`);
+      console.error("UPLOAD error", e);
+      setStatus(`upload error: ${e?.message ?? String(e)}`);
     } finally {
       setUploading(false);
     }
   }
 
+  if (!userId) return <main className="container">loading…</main>;
   if (loading) return <main className="container">loading…</main>;
 
   return (
@@ -160,8 +197,17 @@ export default function TodayPage() {
       <div className="h1">Daily Frame</div>
       <p className="meta">today: {todayKey}</p>
 
+      {status && (
+        <section className="card" style={{ marginTop: 12 }}>
+          <div className="label">status</div>
+          <p className="value" style={{ wordBreak: "break-word" }}>
+            {status}
+          </p>
+        </section>
+      )}
+
       {prompt && (
-        <section className="card">
+        <section className="card" style={{ marginTop: 12 }}>
           <div className="label">today’s prompt</div>
           <div className="prompt">{prompt.title}</div>
 
@@ -180,7 +226,11 @@ export default function TodayPage() {
           )}
 
           <div style={{ marginTop: 12 }}>
-            <button className="secondary" onClick={getStuckTip}>
+            <button
+              className="secondary"
+              type="button"
+              onClick={() => void getStuckTip()}
+            >
               i’m stuck →
             </button>
             {tip && (
@@ -212,7 +262,10 @@ export default function TodayPage() {
         <div className="grid" style={{ marginTop: 12 }}>
           <label className="label">
             caption (optional)
-            <input value={caption} onChange={(e) => setCaption(e.target.value)} />
+            <input
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+            />
           </label>
 
           <label className="label">
@@ -237,10 +290,19 @@ export default function TodayPage() {
                 onChange={(e) => {
                   const f = e.target.files?.[0] ?? null;
                   setSelectedFile(f);
+                  if (f) setStatus(`selected: ${f.name}`);
                 }}
               />
 
-              <button className="secondary" disabled={!selectedFile || uploading} onClick={() => void doUpload()}>
+              <button
+                className="secondary"
+                type="button"
+                disabled={!selectedFile || uploading}
+                onClick={(e) => {
+                  e.preventDefault();
+                  void doUpload();
+                }}
+              >
                 {uploading ? "uploading…" : "upload"}
               </button>
 

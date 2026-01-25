@@ -4,40 +4,39 @@ import { dateKeyInTZ } from "@/lib/date";
 
 export const runtime = "nodejs";
 
-export async function POST(request: Request) {
-  const userId = request.headers.get("x-user-id")?.trim();
+function requireUserId(req: Request) {
+  const userId = req.headers.get("x-user-id");
+  return userId && userId.trim().length > 0 ? userId.trim() : null;
+}
 
+export async function GET(req: Request) {
+  const userId = requireUserId(req);
   if (!userId) {
-    return NextResponse.json({ error: "Missing x-user-id header" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Missing x-user-id header" },
+      { status: 400 }
+    );
   }
 
-  // Create user automatically on first use (simple MVP)
-  const user =
-    (await prisma.user.findUnique({ where: { id: userId } })) ??
-    (await prisma.user.create({
-      data: {
-        id: userId,
-        timezone: "America/New_York",
-      },
-    }));
-
-  const body = await request.json().catch(() => null);
-  const imagePath = body?.imagePath as string | undefined;
-  const caption = (body?.caption as string | undefined) ?? null;
-  const mood = (body?.mood as string | undefined) ?? null;
-  const promptId = (body?.promptId as string | undefined) ?? null;
-
-  if (!imagePath) {
-    return NextResponse.json({ error: "Missing imagePath" }, { status: 400 });
-  }
+  // Ensure user exists (race-safe)
+  const user = await prisma.user.upsert({
+    where: { id: userId },
+    update: {},
+    create: { id: userId, timezone: "America/New_York" },
+  });
 
   const todayKey = dateKeyInTZ(new Date(), user.timezone);
 
-  const saved = await prisma.dailyPhoto.upsert({
-    where: { userId_dateKey: { userId, dateKey: todayKey } },
-    update: { imagePath, caption, mood, ...(promptId ? { promptId } : {}) },
-    create: { userId, dateKey: todayKey, imagePath, caption, mood, promptId },
+  const prompt = await prisma.prompt.findFirst({
+    where: { active: true },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, title: true, constraint: true, twist: true },
   });
 
-  return NextResponse.json({ ok: true, photo: saved });
+  const photo = await prisma.dailyPhoto.findUnique({
+    where: { userId_dateKey: { userId, dateKey: todayKey } },
+    select: { imagePath: true, caption: true, mood: true, promptId: true },
+  });
+
+  return NextResponse.json({ todayKey, prompt, photo });
 }
