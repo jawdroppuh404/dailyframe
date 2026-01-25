@@ -3,43 +3,41 @@ import { prisma } from "@/lib/prisma";
 import { dateKeyInTZ } from "@/lib/date";
 
 export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
-const USER_ID = "demo-user";
+export async function POST(request: Request) {
+  const userId = request.headers.get("x-user-id")?.trim();
 
-export async function GET() {
-  const user = await prisma.user.findUnique({ where: { id: USER_ID } });
-  if (!user) {
-    return NextResponse.json(
-      { error: "User not found" },
-      { status: 404, headers: { "Cache-Control": "no-store" } }
-    );
+  if (!userId) {
+    return NextResponse.json({ error: "Missing x-user-id header" }, { status: 401 });
+  }
+
+  // Create user automatically on first use (simple MVP)
+  const user =
+    (await prisma.user.findUnique({ where: { id: userId } })) ??
+    (await prisma.user.create({
+      data: {
+        id: userId,
+        timezone: "America/New_York",
+      },
+    }));
+
+  const body = await request.json().catch(() => null);
+  const imagePath = body?.imagePath as string | undefined;
+  const caption = (body?.caption as string | undefined) ?? null;
+  const mood = (body?.mood as string | undefined) ?? null;
+  const promptId = (body?.promptId as string | undefined) ?? null;
+
+  if (!imagePath) {
+    return NextResponse.json({ error: "Missing imagePath" }, { status: 400 });
   }
 
   const todayKey = dateKeyInTZ(new Date(), user.timezone);
 
-  const prompt = await prisma.prompt.findFirst({
-    where: { active: true },
-    orderBy: { createdAt: "asc" },
+  const saved = await prisma.dailyPhoto.upsert({
+    where: { userId_dateKey: { userId, dateKey: todayKey } },
+    update: { imagePath, caption, mood, ...(promptId ? { promptId } : {}) },
+    create: { userId, dateKey: todayKey, imagePath, caption, mood, promptId },
   });
 
-  const photo = await prisma.dailyPhoto.findUnique({
-    where: { userId_dateKey: { userId: USER_ID, dateKey: todayKey } },
-    select: {
-      id: true,
-      createdAt: true,
-      dateKey: true,
-      imagePath: true,
-      caption: true,
-      mood: true,
-      userId: true,
-      promptId: true,
-    },
-  });
-
-  return NextResponse.json(
-    { todayKey, prompt, photo },
-    { headers: { "Cache-Control": "no-store" } }
-  );
+  return NextResponse.json({ ok: true, photo: saved });
 }
