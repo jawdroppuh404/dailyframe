@@ -12,7 +12,13 @@ export async function POST(request: Request): Promise<NextResponse> {
       request,
       onBeforeGenerateToken: async () => {
         return {
-          allowedContentTypes: ["image/jpeg", "image/png", "image/webp"],
+          allowedContentTypes: [
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "image/heic",
+            "image/heif",
+          ],
           addRandomSuffix: true,
         };
       },
@@ -21,7 +27,6 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     return NextResponse.json(jsonResponse);
   } catch (error) {
-    console.error("BLOB TOKEN ERROR:", error);
     return NextResponse.json(
       { error: (error as Error).message },
       { status: 400 }
