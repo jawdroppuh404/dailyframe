@@ -153,14 +153,16 @@ export default function TodayPage() {
 
           <label className="label">
             upload image
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) void onUpload(f);
-              }}
-            />
+           <input
+  type="file"
+  accept="image/*"
+  onChange={(e) => {
+    const input = e.currentTarget;
+    const f = input.files?.[0];
+    if (f) void onUpload(f);
+    input.value = ""; // ← IMPORTANT: allow re-selecting same filename
+  }}
+/>
           </label>
         </div>
       </section>
