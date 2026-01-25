@@ -4,7 +4,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { upload } from "@vercel/blob/client";
 
 type Prompt = { id: string; title: string; constraint?: string | null; twist?: string | null };
-type Photo = { imagePath: string; caption?: string | null; mood?: string | null; promptId?: string | null } | null;
+type Photo = {
+  imagePath: string;
+  caption?: string | null;
+  mood?: string | null;
+  promptId?: string | null;
+} | null;
 
 function getOrCreateUserId() {
   const k = "dailyframe_user_id";
@@ -25,31 +30,55 @@ export default function TodayPage() {
   const [caption, setCaption] = useState("");
   const [mood, setMood] = useState<string>("");
   const [tip, setTip] = useState<string>("");
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const userId = useMemo(() => {
-    // safe: only runs on client
     return getOrCreateUserId();
   }, []);
 
   async function load() {
     setLoading(true);
 
-    const res = await fetch("/api/today", {
-      cache: "no-store",
-      headers: { "x-user-id": userId },
-    });
+    try {
+      const res = await fetch("/api/today", {
+        cache: "no-store",
+        headers: { "x-user-id": userId },
+      });
 
-    const data = await res.json();
-    setTodayKey(data.todayKey);
-    setPrompt(data.prompt);
-    setPhoto(data.photo);
-    setCaption(data.photo?.caption ?? "");
-    setMood(data.photo?.mood ?? "");
-    setLoading(false);
+      const text = await res.text();
+
+      if (!res.ok) {
+        console.error("LOAD /api/today failed", res.status, text);
+        alert(`load failed: ${res.status}\n${text.slice(0, 300)}`);
+        setLoading(false);
+        return;
+      }
+
+      let data: any;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error("LOAD /api/today returned non-JSON", text);
+        alert(`load returned non-JSON:\n${text.slice(0, 300)}`);
+        setLoading(false);
+        return;
+      }
+
+      setTodayKey(data.todayKey);
+      setPrompt(data.prompt);
+      setPhoto(data.photo);
+      setCaption(data.photo?.caption ?? "");
+      setMood(data.photo?.mood ?? "");
+      setLoading(false);
+    } catch (e: any) {
+      console.error("LOAD error", e);
+      alert(`load error: ${e?.message ?? String(e)}`);
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -58,9 +87,20 @@ export default function TodayPage() {
   }, []);
 
   async function getStuckTip() {
-    const res = await fetch("/api/stuck", { cache: "no-store" });
-    const data = await res.json();
-    setTip(data.tip);
+    try {
+      const res = await fetch("/api/stuck", { cache: "no-store" });
+      const text = await res.text();
+
+      if (!res.ok) {
+        alert(`stuck failed: ${res.status}\n${text.slice(0, 200)}`);
+        return;
+      }
+
+      const data = JSON.parse(text);
+      setTip(data.tip);
+    } catch (e: any) {
+      alert(`stuck error: ${e?.message ?? String(e)}`);
+    }
   }
 
   async function doUpload() {
@@ -74,7 +114,7 @@ export default function TodayPage() {
         handleUploadUrl: "/api/blob",
       });
 
-      // 2) Save metadata to DB (per-user)
+      // 2) Save metadata in DB (per-user)
       const res = await fetch("/api/photo/upload", {
         method: "POST",
         headers: {
@@ -91,11 +131,11 @@ export default function TodayPage() {
 
       const text = await res.text();
       if (!res.ok) {
-        alert(`upload failed: ${res.status} ${text}`);
+        alert(`upload failed: ${res.status}\n${text.slice(0, 300)}`);
         return;
       }
 
-      // clear selection + input so you can pick the same file again
+      // reset input so same file can be chosen again
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
 
@@ -200,12 +240,8 @@ export default function TodayPage() {
                 }}
               />
 
-              <button
-                className="secondary"
-                disabled={!selectedFile || uploading}
-                onClick={() => void doUpload()}
-              >
-                {uploading ? "uploading…" : selectedFile ? "upload" : "upload"}
+              <button className="secondary" disabled={!selectedFile || uploading} onClick={() => void doUpload()}>
+                {uploading ? "uploading…" : "upload"}
               </button>
 
               {selectedFile && (
