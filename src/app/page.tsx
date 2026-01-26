@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { upload } from "@vercel/blob/client";
 
 type Prompt = {
   id: string;
@@ -20,7 +19,6 @@ type Photo =
   | null;
 
 function getOrCreateUserId(): string {
-  // localStorage only exists in the browser
   if (typeof window === "undefined") return "";
 
   const k = "dailyframe_user_id";
@@ -30,6 +28,30 @@ function getOrCreateUserId(): string {
   const fresh = `user_${window.crypto.randomUUID()}`;
   window.localStorage.setItem(k, fresh);
   return fresh;
+}
+
+function isHeicLike(file: File) {
+  const name = file.name.toLowerCase();
+  return (
+    file.type === "image/heic" ||
+    file.type === "image/heif" ||
+    name.endsWith(".heic") ||
+    name.endsWith(".heif")
+  );
+}
+
+async function heicToJpeg(file: File): Promise<File> {
+  // IMPORTANT: load heic2any only in the browser
+  const { default: heic2any } = await import("heic2any");
+
+  const out = (await heic2any({
+    blob: file,
+    toType: "image/jpeg",
+    quality: 0.9,
+  })) as Blob;
+
+  const baseName = file.name.replace(/\.(heic|heif)$/i, "");
+  return new File([out], `${baseName}.jpg`, { type: "image/jpeg" });
 }
 
 export default function TodayPage() {
@@ -50,7 +72,6 @@ export default function TodayPage() {
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Create/read user id ONLY on client after mount
   useEffect(() => {
     setUserId(getOrCreateUserId());
   }, []);
@@ -99,7 +120,6 @@ export default function TodayPage() {
     }
   }
 
-  // Load once userId exists
   useEffect(() => {
     if (!userId) return;
     void load(userId);
@@ -135,19 +155,34 @@ export default function TodayPage() {
 
     setUploading(true);
     setStatus(
-      `uploading: ${selectedFile.name} (${selectedFile.type || "unknown"}, ${selectedFile.size} bytes)`
+      `prepping: ${selectedFile.name} (${selectedFile.type || "unknown"}, ${selectedFile.size} bytes)`
     );
 
     try {
-      // 1) Upload image to Vercel Blob
-      const blob = await upload(selectedFile.name, selectedFile, {
+      let fileToUpload = selectedFile;
+
+      // ✅ Convert HEIC/HEIF to JPEG for browser compatibility
+      if (isHeicLike(fileToUpload)) {
+        setStatus("converting HEIC → JPEG…");
+        fileToUpload = await heicToJpeg(fileToUpload);
+        setStatus(
+          `converted: ${fileToUpload.name} (${fileToUpload.type}, ${fileToUpload.size} bytes)`
+        );
+      }
+
+      // ✅ IMPORTANT: dynamic import so build/prerender won't touch window
+      const { upload } = await import("@vercel/blob/client");
+
+      // 1) Upload to Vercel Blob
+      setStatus("uploading to blob…");
+      const blob = await upload(fileToUpload.name, fileToUpload, {
         access: "public",
         handleUploadUrl: "/api/blob",
       });
 
       setStatus(`blob uploaded: ${blob.url}`);
 
-      // 2) Save metadata in DB (per-user)
+      // 2) Save metadata
       const res = await fetch("/api/photo/upload", {
         method: "POST",
         headers: {
@@ -170,7 +205,6 @@ export default function TodayPage() {
 
       setStatus("saved ✓");
 
-      // reset input so same file can be chosen again
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
 
@@ -196,6 +230,7 @@ export default function TodayPage() {
 
       <div className="h1">Daily Frame</div>
       <p className="meta">today: {todayKey}</p>
+      <p className="small">user: {userId}</p>
 
       {status && (
         <section className="card" style={{ marginTop: 12 }}>
@@ -226,11 +261,7 @@ export default function TodayPage() {
           )}
 
           <div style={{ marginTop: 12 }}>
-            <button
-              className="secondary"
-              type="button"
-              onClick={() => void getStuckTip()}
-            >
+            <button className="secondary" type="button" onClick={() => void getStuckTip()}>
               i’m stuck →
             </button>
             {tip && (
@@ -262,10 +293,7 @@ export default function TodayPage() {
         <div className="grid" style={{ marginTop: 12 }}>
           <label className="label">
             caption (optional)
-            <input
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-            />
+            <input value={caption} onChange={(e) => setCaption(e.target.value)} />
           </label>
 
           <label className="label">
@@ -286,7 +314,8 @@ export default function TodayPage() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                // ✅ allows HEIC selection in Finder; JPEG/PNG/etc still allowed
+                accept="image/*,.heic,.heif,image/heic,image/heif"
                 onChange={(e) => {
                   const f = e.target.files?.[0] ?? null;
                   setSelectedFile(f);
