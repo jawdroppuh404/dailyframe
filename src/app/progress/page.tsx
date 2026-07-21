@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AccountNav } from "@/components/account-nav";
 import { Account, AuthForm } from "@/components/auth-form";
+import { SharePhotoButton } from "@/components/share-photo-button";
 import { VerificationGate } from "@/components/verification-gate";
 import { appPath } from "@/lib/app-path";
 
@@ -12,7 +13,16 @@ export default function ProgressPage() {
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
   const [dates, setDates] = useState<string[]>([]);
-  const [previousPhotos, setPreviousPhotos] = useState<Array<{ dateKey: string; imageUrl: string; caption?: string | null; mood?: string | null; alternate?: boolean }>>([]);
+  type PreviousPhoto = {
+    dateKey: string;
+    imageUrl: string;
+    caption?: string | null;
+    mood?: string | null;
+    alternate?: boolean;
+    prompt: { title: string; constraint?: string | null; twist?: string | null } | null;
+  };
+  const [previousPhotos, setPreviousPhotos] = useState<PreviousPhoto[]>([]);
+  const [selectedPhoto, setSelectedPhoto] = useState<PreviousPhoto | null>(null);
 
   async function loadProgress(user: Account) {
     setAccount(user);
@@ -72,7 +82,14 @@ export default function ProgressPage() {
         {previousPhotos.length ? (
           <div className="photo-history-grid">
             {previousPhotos.map((photo) => (
-              <article className="photo-history-card" key={photo.dateKey}>
+              <article
+                className="photo-history-card clickable-card"
+                key={`${photo.dateKey}-${photo.imageUrl}`}
+                role="button"
+                tabIndex={0}
+                onClick={() => setSelectedPhoto(photo)}
+                onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") setSelectedPhoto(photo); }}
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img loading="lazy" src={photo.imageUrl} alt={`Your frame from ${photo.dateKey}`} />
                 <div className="photo-history-copy">
@@ -88,6 +105,26 @@ export default function ProgressPage() {
           <p className="small">your earlier frames will appear here.</p>
         )}
       </section>
+
+      {selectedPhoto && (
+        <div className="modal-backdrop photo-card-backdrop" role="presentation" onClick={() => setSelectedPhoto(null)}>
+          <article className="photo-detail-card" role="dialog" aria-modal="true" aria-label="Previous photo card" onClick={(event) => event.stopPropagation()}>
+            <button className="gear-help-close" type="button" aria-label="Close" onClick={() => setSelectedPhoto(null)}>×</button>
+            <div className="label">frame from {selectedPhoto.dateKey}</div>
+            <div className="photo-card-prompt">{selectedPhoto.prompt?.title ?? "Daily Frame"}</div>
+            {selectedPhoto.prompt?.constraint && <><div className="label">constraint</div><p className="value">{selectedPhoto.prompt.constraint}</p></>}
+            {selectedPhoto.prompt?.twist && <><div className="label">optional twist</div><p className="value">{selectedPhoto.prompt.twist}</p></>}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={selectedPhoto.imageUrl} alt={`Your frame from ${selectedPhoto.dateKey}`} />
+            {selectedPhoto.prompt ? (
+              <SharePhotoButton prompt={selectedPhoto.prompt} imageUrl={selectedPhoto.imageUrl} />
+            ) : (
+              <p className="small">This older photo does not have a prompt attached, so a complete share card is unavailable.</p>
+            )}
+            <p className="photo-card-footer">create today @ jawdroppuh.lol/dailyframe</p>
+          </article>
+        </div>
+      )}
     </main>
   );
 }
