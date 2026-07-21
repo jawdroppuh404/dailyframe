@@ -9,6 +9,7 @@ export default function ProgressPage() {
   const [account, setAccount] = useState<Account | null | undefined>(undefined);
   const [todayKey, setTodayKey] = useState("");
   const [streak, setStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
   const [dates, setDates] = useState<string[]>([]);
 
   async function loadProgress(user: Account) {
@@ -19,6 +20,7 @@ export default function ProgressPage() {
     const data = await response.json();
     setTodayKey(data.todayKey ?? "");
     setStreak(data.streak ?? 0);
+    setBestStreak(data.bestStreak ?? 0);
     setDates(data.dateKeysDesc ?? []);
   }
 
@@ -48,7 +50,7 @@ export default function ProgressPage() {
     <main className="container">
       <AccountNav email={account.email} />
       <div className="h1">Your Progress</div>
-      <p className="meta">current streak: {streak}</p>
+      <p className="meta">current streak: {streak} · personal best: {bestStreak}</p>
       <div className="label">last 28 days</div>
       <div className="calendar" style={{ marginTop: 10 }}>
         {days.map((key) => (

@@ -75,6 +75,25 @@ hr {
 }
 .button-link:hover { background: var(--hover); }
 .secondary-link { color: var(--text2); }
+.account-section { margin-top: 18px; }
+.achievement-card { margin-top: 12px; }
+.streak-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+.streak-stats > div { border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+.streak-stats span { display: block; font-size: 30px; }
+.streak-stats small { color: var(--text2); font-size: 11px; }
+.achievement-badges { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.achievement-badge { border: 1px solid var(--line); border-radius: 10px; padding: 12px; min-width: 0; }
+.achievement-badge svg { width: 58px; height: 58px; display: block; color: var(--text); }
+.badge-name { margin-top: 4px; font-size: 13px; overflow-wrap: anywhere; }
+.next-unlock { border-left: 2px solid var(--text2); padding-left: 12px; margin: 16px 0; font-size: 13px; }
+.upcoming-ranks { margin-top: 18px; }
+.upcoming-rank { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 12px; }
+.upcoming-rank > div { display: grid; gap: 4px; }
+.upcoming-rank span { color: var(--text2); }
+
+@media (max-width: 520px) {
+  .achievement-badges { grid-template-columns: 1fr; }
+}
 
 .card {
   border: 1px solid var(--line);

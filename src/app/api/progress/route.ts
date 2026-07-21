@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { dateKeyInTZ } from "@/lib/date";
-import { computeStreak } from "@/lib/streak";
+import { achievementForStreak, upcomingAchievements } from "@/lib/achievements";
+import { computeLongestStreak, computeStreak } from "@/lib/streak";
 import { getAuthenticatedUser } from "@/lib/auth";
 
 export const runtime = "nodejs";
@@ -23,9 +24,17 @@ export async function GET(req: Request) {
 
   const dateKeysDesc = photos.map((p) => p.dateKey);
   const streak = computeStreak(dateKeysDesc, todayKey);
+  const bestStreak = computeLongestStreak(dateKeysDesc);
 
   return NextResponse.json(
-    { todayKey, streak, dateKeysDesc },
+    {
+      todayKey,
+      streak,
+      bestStreak,
+      dateKeysDesc,
+      achievement: achievementForStreak(bestStreak),
+      upcomingAchievements: upcomingAchievements(bestStreak),
+    },
     { headers: { "Cache-Control": "no-store, max-age=0" } }
   );
 }

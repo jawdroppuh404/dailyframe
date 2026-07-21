@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-export function VerificationGate({ email }: { email: string }) {
+export function VerificationControls({ email }: { email: string }) {
   const [status, setStatus] = useState("Check your inbox for the confirmation link.");
   const [sending, setSending] = useState(false);
 
@@ -25,21 +25,27 @@ export function VerificationGate({ email }: { email: string }) {
   }
 
   return (
+    <section className="card auth-card grid">
+      <p className="value">
+        We sent a confirmation link to <strong>{email}</strong>.
+      </p>
+      <p className="small">{status}</p>
+      <button type="button" disabled={sending} onClick={() => void resend()}>
+        {sending ? "sending…" : "resend confirmation"}
+      </button>
+      <button className="secondary" type="button" onClick={() => void logout()}>
+        log out
+      </button>
+    </section>
+  );
+}
+
+export function VerificationGate({ email }: { email: string }) {
+  return (
     <main className="container auth-shell">
       <div className="h1">Confirm your email</div>
       <p className="meta">one quick check before Daily Frame unlocks.</p>
-      <section className="card auth-card grid">
-        <p className="value">
-          We sent a confirmation link to <strong>{email}</strong>.
-        </p>
-        <p className="small">{status}</p>
-        <button type="button" disabled={sending} onClick={() => void resend()}>
-          {sending ? "sending…" : "resend confirmation"}
-        </button>
-        <button className="secondary" type="button" onClick={() => void logout()}>
-          log out
-        </button>
-      </section>
+      <VerificationControls email={email} />
     </main>
   );
 }

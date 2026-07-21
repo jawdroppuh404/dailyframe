@@ -2,8 +2,17 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { AccountNav } from "@/components/account-nav";
+import { AchievementBadges } from "@/components/achievement-badges";
 import { Account, AuthForm } from "@/components/auth-form";
-import { VerificationGate } from "@/components/verification-gate";
+import { VerificationControls } from "@/components/verification-gate";
+import type { Achievement } from "@/lib/achievements";
+
+type StreakProgress = {
+  streak: number;
+  bestStreak: number;
+  achievement: Achievement;
+  upcomingAchievements: Achievement[];
+};
 
 export default function AccountPage() {
   const [account, setAccount] = useState<Account | null | undefined>(undefined);
@@ -13,6 +22,7 @@ export default function AccountPage() {
   const [status, setStatus] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [sendingReset, setSendingReset] = useState(false);
+  const [progress, setProgress] = useState<StreakProgress | null>(null);
 
   useEffect(() => {
     void fetch("/api/auth/session", { cache: "no-store" })
@@ -20,6 +30,17 @@ export default function AccountPage() {
       .then((data) => setAccount(data.user ?? null))
       .catch(() => setAccount(null));
   }, []);
+
+  useEffect(() => {
+    if (!account?.emailVerified) return;
+    void fetch("/api/progress", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Unable to load streak progress.");
+        return response.json();
+      })
+      .then((data) => setProgress(data))
+      .catch(() => setProgress(null));
+  }, [account]);
 
   async function deleteAccount(event: FormEvent) {
     event.preventDefault();
@@ -61,19 +82,54 @@ export default function AccountPage() {
 
   if (account === undefined) return <main className="container">loading…</main>;
   if (!account) return <AuthForm onAuthenticated={setAccount} />;
-  if (!account.emailVerified) return <VerificationGate email={account.email} />;
 
   return (
     <main className="container">
       <AccountNav email={account.email} />
-      <div className="h1">Account</div>
-      <p className="meta">manage your Daily Frame account.</p>
+      <div className="h1">My Account</div>
+      <p className="meta">your streak, status, and account controls.</p>
 
-      <section className="card grid">
+      {account.emailVerified && progress ? (
+        <section className="card achievement-card">
+          <div className="label">streak program</div>
+          <div className="streak-stats">
+            <div><span>{progress.streak}</span><small>current streak</small></div>
+            <div><span>{progress.bestStreak}</span><small>personal best</small></div>
+          </div>
+          <AchievementBadges achievement={progress.achievement} />
+          {progress.upcomingAchievements[0] && (
+            <p className="next-unlock">
+              {progress.upcomingAchievements[0].days - progress.bestStreak} more streak days to unlock <strong>{progress.upcomingAchievements[0].rank}</strong>
+            </p>
+          )}
+          <div className="upcoming-ranks">
+            <div className="label">upcoming ranks</div>
+            {progress.upcomingAchievements.map((item) => (
+              <div className="upcoming-rank" key={item.days}>
+                <div>
+                  <strong>{item.rank}</strong>
+                  <span>{item.gear}</span>
+                </div>
+                <span>{item.days - progress.bestStreak} days</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : account.emailVerified ? (
+        <section className="card"><p className="small">loading streak status…</p></section>
+      ) : (
+        <section className="account-section">
+          <div className="h1">Confirm your email</div>
+          <p className="meta">confirm your address to unlock prompts, streaks, and ranks.</p>
+          <VerificationControls email={account.email} />
+        </section>
+      )}
+
+      <section className="card grid account-section">
         <div>
           <div className="label">email</div>
           <p className="value">{account.email}</p>
-          <p className="small">confirmed ✓</p>
+          <p className="small">{account.emailVerified ? "confirmed ✓" : "confirmation pending"}</p>
         </div>
         <button
           className="secondary"
@@ -86,7 +142,13 @@ export default function AccountPage() {
         {status && !showDelete && <p className="small">{status}</p>}
       </section>
 
-      <section className="card danger-zone">
+      <section className="card account-section">
+        <div className="label">feedback</div>
+        <p className="small">A simple place to send app feedback will live here.</p>
+        <button className="secondary" type="button" disabled>feedback coming soon</button>
+      </section>
+
+      {account.emailVerified && <section className="card danger-zone">
         <div className="label">danger zone</div>
         <p className="small">
           Deleting your account permanently removes your streak, captions, and private photos.
@@ -128,7 +190,7 @@ export default function AccountPage() {
             </button>
           </form>
         )}
-      </section>
+      </section>}
     </main>
   );
 }

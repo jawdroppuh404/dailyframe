@@ -6,6 +6,8 @@ A minimal hobbyist photography web app:
 - caption + mood
 - prompt archive
 - progress: streak + last 28 days grid
+- permanent photography ranks and increasingly rare camera unlocks based on the
+  user's best streak (3, 7, 28, 90, 180, and 365 days, then yearly)
 - "i'm stuck" micro-prompts
 - email/password accounts with 30-day secure sessions
 - confirmed email addresses, password recovery, and account deletion
@@ -106,6 +108,8 @@ Open your Vercel URL, upload a photo, and check Progress.
 - When an existing anonymous browser creates an account, its prior photos and
   streak are attached to that account once.
 - New users currently default to the `America/New_York` timezone.
+- A streak remains active until the current day ends, and unlocked ranks are
+  based on the best historical streak so they are never taken away.
 - New photos are stored in private Vercel Blob storage and streamed only after
   an ownership check. Existing public-store photos remain available through the
   same authenticated proxy but cannot retroactively be made private in place.

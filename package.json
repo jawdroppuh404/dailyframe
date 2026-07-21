@@ -10,7 +10,7 @@
     "postinstall": "prisma generate",
     "seed": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed.ts",
     "migrate:private-photos": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/migrate-private-photos.ts",
-    "test": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' tests/prompt-rotation.test.ts && ts-node --compiler-options '{\"module\":\"CommonJS\"}' tests/auth.test.ts"
+    "test": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' tests/prompt-rotation.test.ts && ts-node --compiler-options '{\"module\":\"CommonJS\"}' tests/auth.test.ts && ts-node --compiler-options '{\"module\":\"CommonJS\"}' tests/streak-achievements.test.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.18.0",
