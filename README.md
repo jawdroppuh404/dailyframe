@@ -8,7 +8,9 @@ A minimal hobbyist photography web app:
 - progress: streak + last 28 days grid
 - "i'm stuck" micro-prompts
 - email/password accounts with 30-day secure sessions
+- confirmed email addresses, password recovery, and account deletion
 - private, account-scoped photo storage
+- shareable prompt-card images
 
 The prompt library contains 365 challenges. A prompt is permanently assigned
 to each calendar date on first request. The rotation uses every active prompt
@@ -24,7 +26,8 @@ Theme: **white Courier text on black background**.
 npm install
 ```
 
-2) Set `DATABASE_URL` and `PRIVATE_BLOB_READ_WRITE_TOKEN` in `.env` (see `.env.example`)
+2) Set `DATABASE_URL`, `PRIVATE_BLOB_READ_WRITE_TOKEN`, `RESEND_API_KEY`, and
+`EMAIL_FROM` in `.env` (see `.env.example`)
 
 3) Migrate + seed
 
@@ -72,7 +75,14 @@ This runs:
 - `prisma migrate deploy`
 - `next build`
 
-### 6) Seed prompts in production
+### 6) Configure transactional email
+Create a Resend API key and verify a sending domain. Add these Production and
+Preview environment variables:
+
+- `RESEND_API_KEY`
+- `EMAIL_FROM` (for example `Daily Frame <accounts@example.com>`)
+
+### 7) Seed prompts in production
 After the first deploy, seed prompts into the production DB. The seed is
 idempotent, so it can be rerun whenever the library changes without creating
 duplicates or replacing historical daily assignments.
@@ -85,12 +95,14 @@ Option A (simple): run the seed locally against production DB:
 npm run seed
 ```
 
-### 7) Done
+### 8) Done
 Open your Vercel URL, upload a photo, and check Progress.
 
 ## Notes
 - Accounts use normalized email addresses, scrypt password hashes, and hashed
   30-day session tokens in secure, HTTP-only cookies.
+- Verification and password-reset links are single-use, expire automatically,
+  and are stored in the database only as SHA-256 hashes.
 - When an existing anonymous browser creates an account, its prior photos and
   streak are attached to that account once.
 - New users currently default to the `America/New_York` timezone.

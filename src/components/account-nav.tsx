@@ -12,6 +12,7 @@ export function AccountNav({ email }: { email: string }) {
         <a href="/">today</a>
         <a href="/archive">archive</a>
         <a href="/progress">progress</a>
+        <a href="/account">account</a>
         <button className="nav-button" type="button" onClick={() => void logout()}>
           log out
         </button>

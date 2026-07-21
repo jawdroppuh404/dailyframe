@@ -26,7 +26,13 @@ export async function POST(request: Request) {
 
   const session = await createSession(user.id);
   return NextResponse.json(
-    { user: { id: user.id, email: user.email } },
+    {
+      user: {
+        id: user.id,
+        email: user.email,
+        emailVerified: Boolean(user.emailVerifiedAt),
+      },
+    },
     { headers: { "Set-Cookie": sessionCookie(session.token, session.expiresAt) } }
   );
 }

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   hashPassword,
+  hashOpaqueToken,
   normalizeEmail,
   validPassword,
   verifyPassword,
@@ -16,6 +17,8 @@ async function main() {
   assert.equal(normalizeEmail("not-an-email"), null);
   assert.equal(validPassword("short"), false);
   assert.equal(validPassword(password), true);
+  assert.equal(hashOpaqueToken("same-token"), hashOpaqueToken("same-token"));
+  assert.notEqual(hashOpaqueToken("same-token"), hashOpaqueToken("different-token"));
 
   console.log("Authentication tests passed.");
 }

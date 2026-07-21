@@ -8,6 +8,7 @@ import {
   sessionCookie,
   validPassword,
 } from "@/lib/auth";
+import { emailDeliveryConfigured, sendVerificationEmail } from "@/lib/auth-email";
 
 export const runtime = "nodejs";
 
@@ -24,6 +25,12 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "Enter a valid email and a password of at least 10 characters." },
       { status: 400 }
+    );
+  }
+  if (!emailDeliveryConfigured()) {
+    return NextResponse.json(
+      { error: "Account creation is temporarily unavailable while email delivery is being configured." },
+      { status: 503 },
     );
   }
 
@@ -48,8 +55,21 @@ export async function POST(request: Request) {
     });
 
     const session = await createSession(user.id);
+    let emailSent = true;
+    try {
+      await sendVerificationEmail(
+        { id: user.id, email: user.email! },
+        new URL(request.url).origin,
+      );
+    } catch (error) {
+      console.error("Unable to send verification email", error);
+      emailSent = false;
+    }
     return NextResponse.json(
-      { user: { id: user.id, email: user.email } },
+      {
+        user: { id: user.id, email: user.email, emailVerified: false },
+        emailSent,
+      },
       { headers: { "Set-Cookie": sessionCookie(session.token, session.expiresAt) } }
     );
   } catch (error) {

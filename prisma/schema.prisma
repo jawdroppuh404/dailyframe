@@ -13,10 +13,29 @@ model User {
   name      String?
   email     String?  @unique
   passwordHash String?
+  emailVerifiedAt DateTime?
   timezone  String   @default("America/New_York")
 
   photos    DailyPhoto[]
   sessions  Session[]
+  authTokens AuthToken[]
+}
+
+enum AuthTokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+model AuthToken {
+  id        String        @id
+  createdAt DateTime      @default(now())
+  expiresAt DateTime
+  type      AuthTokenType
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@index([expiresAt])
 }
 
 model Session {

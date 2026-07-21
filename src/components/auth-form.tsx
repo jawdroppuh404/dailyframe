@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import { clearLegacyUserId, getLegacyUserId } from "@/lib/client-user";
 
-export type Account = { id: string; email: string };
+export type Account = { id: string; email: string; emailVerified: boolean };
 
 export function AuthForm({ onAuthenticated }: { onAuthenticated: (user: Account) => void }) {
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -11,6 +11,7 @@ export function AuthForm({ onAuthenticated }: { onAuthenticated: (user: Account)
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [resetRequested, setResetRequested] = useState(false);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -37,6 +38,25 @@ export function AuthForm({ onAuthenticated }: { onAuthenticated: (user: Account)
       onAuthenticated(data.user);
     } catch {
       setError("Unable to reach the server. Try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function requestReset() {
+    setSubmitting(true);
+    setError("");
+    try {
+      const response = await fetch("/api/auth/password-reset/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Unable to request a reset link.");
+      setResetRequested(true);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Unable to request a reset link.");
     } finally {
       setSubmitting(false);
     }
@@ -93,7 +113,23 @@ export function AuthForm({ onAuthenticated }: { onAuthenticated: (user: Account)
           <button type="submit" disabled={submitting}>
             {submitting ? "working…" : mode === "login" ? "log in" : "create account"}
           </button>
+          {mode === "login" && (
+            <button
+              className="secondary"
+              type="button"
+              disabled={submitting || !email}
+              onClick={() => void requestReset()}
+            >
+              forgot password?
+            </button>
+          )}
         </form>
+
+        {resetRequested && (
+          <p className="small" style={{ marginTop: 14 }}>
+            if that account exists, a reset link is on its way.
+          </p>
+        )}
 
         {mode === "signup" && getLegacyUserId() && (
           <p className="small" style={{ marginTop: 14 }}>

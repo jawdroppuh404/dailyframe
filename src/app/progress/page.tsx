@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AccountNav } from "@/components/account-nav";
 import { Account, AuthForm } from "@/components/auth-form";
+import { VerificationGate } from "@/components/verification-gate";
 
 export default function ProgressPage() {
   const [account, setAccount] = useState<Account | null | undefined>(undefined);
@@ -12,6 +13,7 @@ export default function ProgressPage() {
 
   async function loadProgress(user: Account) {
     setAccount(user);
+    if (!user.emailVerified) return;
     const response = await fetch("/api/progress", { cache: "no-store" });
     if (response.status === 401) return setAccount(null);
     const data = await response.json();
@@ -40,6 +42,7 @@ export default function ProgressPage() {
 
   if (account === undefined) return <main className="container">loading…</main>;
   if (!account) return <AuthForm onAuthenticated={(user) => void loadProgress(user)} />;
+  if (!account.emailVerified) return <VerificationGate email={account.email} />;
 
   return (
     <main className="container">

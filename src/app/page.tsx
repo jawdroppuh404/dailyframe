@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { AccountNav } from "@/components/account-nav";
 import { Account, AuthForm } from "@/components/auth-form";
+import { SharePromptButton } from "@/components/share-prompt-button";
+import { VerificationGate } from "@/components/verification-gate";
 
 type Prompt = {
   id: string;
@@ -84,7 +86,7 @@ export default function TodayPage() {
       .then((response) => response.json())
       .then((data) => {
         setAccount(data.user ?? null);
-        if (data.user) return loadToday();
+        if (data.user?.emailVerified) return loadToday();
         setLoading(false);
       })
       .catch(() => {
@@ -155,11 +157,12 @@ export default function TodayPage() {
       <AuthForm
         onAuthenticated={(user) => {
           setAccount(user);
-          void loadToday();
+          if (user.emailVerified) void loadToday();
         }}
       />
     );
   }
+  if (!account.emailVerified) return <VerificationGate email={account.email} />;
 
   return (
     <main className="container">
@@ -181,9 +184,12 @@ export default function TodayPage() {
           {prompt.constraint && <><div className="label">constraint</div><p className="value">{prompt.constraint}</p></>}
           {prompt.twist && <><div className="label">optional twist</div><p className="value">{prompt.twist}</p></>}
           <div style={{ marginTop: 12 }}>
-            <button className="secondary" type="button" onClick={() => void getStuckTip()}>
-              i’m stuck →
-            </button>
+            <div className="prompt-actions">
+              <button className="secondary" type="button" onClick={() => void getStuckTip()}>
+                i’m stuck →
+              </button>
+              <SharePromptButton prompt={prompt} />
+            </div>
             {tip && <p className="small"><em>{tip}</em></p>}
           </div>
         </section>

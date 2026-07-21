@@ -1,3 +1,4 @@
+import { AuthTokenType } from "@prisma/client";
 import { createHash, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 import { prisma } from "./prisma";
 
@@ -7,6 +8,7 @@ const SESSION_DAYS = 30;
 export type AuthenticatedUser = {
   id: string;
   email: string;
+  emailVerified: boolean;
   timezone: string;
 };
 
@@ -34,7 +36,7 @@ export async function verifyPassword(password: string, storedHash: string) {
   return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
 
-function hashSessionToken(token: string) {
+export function hashOpaqueToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
@@ -52,7 +54,7 @@ export async function createSession(userId: string) {
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
 
   await prisma.session.create({
-    data: { id: hashSessionToken(token), userId, expiresAt },
+    data: { id: hashOpaqueToken(token), userId, expiresAt },
   });
 
   return { token, expiresAt };
@@ -71,32 +73,55 @@ export function expiredSessionCookie() {
 export async function deleteRequestSession(request: Request) {
   const token = readCookie(request, SESSION_COOKIE);
   if (!token) return;
-  await prisma.session.deleteMany({ where: { id: hashSessionToken(token) } });
+  await prisma.session.deleteMany({ where: { id: hashOpaqueToken(token) } });
 }
 
 export async function getAuthenticatedUser(
-  request: Request
+  request: Request,
+  options: { requireVerified?: boolean } = {},
 ): Promise<AuthenticatedUser | null> {
   const token = readCookie(request, SESSION_COOKIE);
   if (!token) return null;
 
   const session = await prisma.session.findUnique({
-    where: { id: hashSessionToken(token) },
+    where: { id: hashOpaqueToken(token) },
     select: {
       expiresAt: true,
-      user: { select: { id: true, email: true, timezone: true } },
+      user: {
+        select: { id: true, email: true, emailVerifiedAt: true, timezone: true },
+      },
     },
   });
 
   if (!session || session.expiresAt <= new Date() || !session.user.email) {
     return null;
   }
+  if (options.requireVerified !== false && !session.user.emailVerifiedAt) return null;
 
   return {
     id: session.user.id,
     email: session.user.email,
+    emailVerified: Boolean(session.user.emailVerifiedAt),
     timezone: session.user.timezone,
   };
+}
+
+export async function createAuthToken(
+  userId: string,
+  type: AuthTokenType,
+  lifetimeMs: number,
+) {
+  const token = randomBytes(32).toString("base64url");
+  const expiresAt = new Date(Date.now() + lifetimeMs);
+
+  await prisma.$transaction([
+    prisma.authToken.deleteMany({ where: { userId, type } }),
+    prisma.authToken.create({
+      data: { id: hashOpaqueToken(token), userId, type, expiresAt },
+    }),
+  ]);
+
+  return { token, expiresAt };
 }
 
 export function normalizeEmail(value: unknown) {
