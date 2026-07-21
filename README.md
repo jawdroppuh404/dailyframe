@@ -8,6 +8,10 @@ A minimal hobbyist photography web app:
 - progress: streak + last 28 days grid
 - "i'm stuck" micro-prompts
 
+The prompt library contains 365 challenges. A prompt is permanently assigned
+to each calendar date on first request. The rotation uses every active prompt
+before recycling the least-recently-used prompt.
+
 Theme: **white Courier text on black background**.
 
 ## Local dev
@@ -62,8 +66,10 @@ This runs:
 - `prisma migrate deploy`
 - `next build`
 
-### 6) Seed prompts in production (one-time)
-After the first deploy, seed prompts into the production DB.
+### 6) Seed prompts in production
+After the first deploy, seed prompts into the production DB. The seed is
+idempotent, so it can be rerun whenever the library changes without creating
+duplicates or replacing historical daily assignments.
 
 Option A (simple): run the seed locally against production DB:
 - Temporarily set your local `DATABASE_URL` to the production connection string
@@ -77,5 +83,7 @@ npm run seed
 Open your Vercel URL, upload a photo, and check Progress.
 
 ## Notes
-- MVP uses a fixed demo user id: `demo-user` (no authentication yet)
+- The MVP stores an anonymous user ID in each browser's local storage; clearing
+  browser storage starts a new local profile.
+- New users currently default to the `America/New_York` timezone.
 - Photos are stored on Vercel Blob; DB data is on Postgres

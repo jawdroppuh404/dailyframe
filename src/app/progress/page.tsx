@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { getOrCreateUserId } from "@/lib/client-user";
 
 export default function ProgressPage() {
   const [todayKey, setTodayKey] = useState("");
@@ -8,7 +9,12 @@ export default function ProgressPage() {
   const [dates, setDates] = useState<string[]>([]);
 
   useEffect(() => {
-    fetch("/api/progress", { cache: "no-store" })
+    const userId = getOrCreateUserId();
+
+    fetch("/api/progress", {
+      cache: "no-store",
+      headers: { "x-user-id": userId },
+    })
       .then((r) => r.json())
       .then((d) => {
         setTodayKey(d.todayKey);

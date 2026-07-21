@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { pickPromptForDate } from "./prompt-rotation";
 
 /**
  * Returns today's prompt.
@@ -16,21 +17,35 @@ export async function getOrAssignDailyPrompt(dateKey: string) {
     return existing.prompt;
   }
 
-  // 2) Get available prompts
+  // 2) Get active prompts and their most recent assignment.
   const prompts = await prisma.prompt.findMany({
     where: { active: true },
-    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      title: true,
+      constraint: true,
+      twist: true,
+      dailyAssignments: {
+        orderBy: { dateKey: "desc" },
+        take: 1,
+        select: { dateKey: true },
+      },
+    },
   });
 
-  if (prompts.length === 0) {
+  const picked = pickPromptForDate(
+    prompts.map((prompt) => ({
+      ...prompt,
+      lastUsedDateKey: prompt.dailyAssignments[0]?.dateKey ?? null,
+    })),
+    dateKey
+  );
+
+  if (!picked) {
     throw new Error("No prompts available.");
   }
 
-  // 3) Deterministically pick a prompt for the day
-  const index = hashString(dateKey) % prompts.length;
-  const picked = prompts[index];
-
-  // 4) Try to create the assignment
+  // 3) Try to create the assignment
   // If another request created it first, ignore the error
   try {
     await prisma.dailyPromptAssignment.create({
@@ -46,7 +61,7 @@ export async function getOrAssignDailyPrompt(dateKey: string) {
     }
   }
 
-  // 5) Read again (guaranteed to exist now)
+  // 4) Read again (guaranteed to exist now)
   const after = await prisma.dailyPromptAssignment.findUnique({
     where: { dateKey },
     include: { prompt: true },
@@ -57,15 +72,4 @@ export async function getOrAssignDailyPrompt(dateKey: string) {
   }
 
   return after.prompt;
-}
-
-/**
- * Simple deterministic string hash
- */
-function hashString(input: string): number {
-  let hash = 0;
-  for (let i = 0; i < input.length; i++) {
-    hash = (hash * 31 + input.charCodeAt(i)) >>> 0;
-  }
-  return hash;
 }

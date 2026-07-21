@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { getOrCreateUserId } from "@/lib/client-user";
 
 type Prompt = {
   id: string;
@@ -17,18 +18,6 @@ type Photo =
       promptId?: string | null;
     }
   | null;
-
-function getOrCreateUserId(): string {
-  if (typeof window === "undefined") return "";
-
-  const k = "dailyframe_user_id";
-  const existing = window.localStorage.getItem(k);
-  if (existing) return existing;
-
-  const fresh = `user_${window.crypto.randomUUID()}`;
-  window.localStorage.setItem(k, fresh);
-  return fresh;
-}
 
 function isHeicLike(file: File) {
   const name = file.name.toLowerCase();

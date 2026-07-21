@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { dateKeyInTZ } from "@/lib/date";
+import { getOrAssignDailyPrompt } from "@/lib/prompt";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function requireUserId(req: Request) {
   const userId = req.headers.get("x-user-id");
@@ -12,10 +14,7 @@ function requireUserId(req: Request) {
 export async function GET(req: Request) {
   const userId = requireUserId(req);
   if (!userId) {
-    return NextResponse.json(
-      { error: "Missing x-user-id header" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Missing x-user-id header" }, { status: 400 });
   }
 
   // Ensure user exists (race-safe)
@@ -27,16 +26,15 @@ export async function GET(req: Request) {
 
   const todayKey = dateKeyInTZ(new Date(), user.timezone);
 
-  const prompt = await prisma.prompt.findFirst({
-    where: { active: true },
-    orderBy: { createdAt: "desc" },
-    select: { id: true, title: true, constraint: true, twist: true },
-  });
+  const prompt = await getOrAssignDailyPrompt(todayKey);
 
   const photo = await prisma.dailyPhoto.findUnique({
     where: { userId_dateKey: { userId, dateKey: todayKey } },
     select: { imagePath: true, caption: true, mood: true, promptId: true },
   });
 
-  return NextResponse.json({ todayKey, prompt, photo });
+  return NextResponse.json(
+    { todayKey, prompt, photo },
+    { headers: { "Cache-Control": "no-store, max-age=0" } }
+  );
 }
