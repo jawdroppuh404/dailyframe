@@ -14,11 +14,16 @@ html, body { height: 100%; }
 
 body {
   margin: 0;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
   background: var(--bg);
   color: var(--text);
   font-family: "Courier New", Courier, monospace;
   letter-spacing: 0.2px;
 }
+
+body > main { width: 100%; flex: 1; }
 
 a {
   color: var(--text2);
@@ -76,6 +81,17 @@ hr {
 .button-link:hover { background: var(--hover); }
 .secondary-link { color: var(--text2); }
 .account-section { margin-top: 18px; }
+.feedback-card form { margin-top: 12px; }
+.site-footer {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 22px 24px 30px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+}
+.site-footer a { color: var(--text2); }
 .achievement-card { margin-top: 12px; }
 .streak-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
 .streak-stats > div { border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
@@ -120,7 +136,7 @@ hr {
 
 .value { margin: 4px 0 0 0; }
 
-button, input, select { font-family: inherit; font-size: 14px; }
+button, input, select, textarea { font-family: inherit; font-size: 14px; }
 
 button {
   background: transparent;
@@ -136,7 +152,7 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 
 button.secondary { color: var(--text2); }
 
-input, select {
+input, select, textarea {
   width: 100%;
   background: transparent;
   color: var(--text);
@@ -144,6 +160,9 @@ input, select {
   padding: 10px 12px;
   border-radius: 10px;
 }
+
+textarea { resize: vertical; min-height: 120px; line-height: 1.45; }
+textarea::placeholder { color: var(--muted); }
 
 img.photo {
   width: 100%;

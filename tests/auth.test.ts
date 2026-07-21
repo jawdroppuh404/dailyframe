@@ -7,6 +7,7 @@ import {
   verifyPassword,
 } from "../src/lib/auth";
 import { appPath, publicAppUrl } from "../src/lib/app-path";
+import { parseFeedback } from "../src/lib/feedback";
 
 async function main() {
   const password = "a-correct-password";
@@ -26,6 +27,12 @@ async function main() {
     publicAppUrl("https://dailyframe.example/api/auth/signup"),
     "https://dailyframe.example/dailyframe",
   );
+  assert.deepEqual(parseFeedback({ type: "bug", message: "  upload failed  " }), {
+    type: "bug",
+    message: "upload failed",
+  });
+  assert.equal(parseFeedback({ type: "question", message: "hello" }), null);
+  assert.equal(parseFeedback({ type: "comment", message: "x" }), null);
 
   console.log("Authentication tests passed.");
 }

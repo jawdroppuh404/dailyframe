@@ -24,6 +24,10 @@ export default function AccountPage() {
   const [deleting, setDeleting] = useState(false);
   const [sendingReset, setSendingReset] = useState(false);
   const [progress, setProgress] = useState<StreakProgress | null>(null);
+  const [feedbackType, setFeedbackType] = useState<"comment" | "bug">("comment");
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [feedbackStatus, setFeedbackStatus] = useState("");
+  const [sendingFeedback, setSendingFeedback] = useState(false);
 
   useEffect(() => {
     void fetch(appPath("/api/auth/session"), { cache: "no-store" })
@@ -78,6 +82,27 @@ export default function AccountPage() {
       setStatus("Unable to request a reset link.");
     } finally {
       setSendingReset(false);
+    }
+  }
+
+  async function sendFeedback(event: FormEvent) {
+    event.preventDefault();
+    setSendingFeedback(true);
+    setFeedbackStatus("");
+    try {
+      const response = await fetch(appPath("/api/feedback"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: feedbackType, message: feedbackMessage }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Unable to send feedback.");
+      setFeedbackMessage("");
+      setFeedbackStatus("sent to info@jawdroppuh.lol ✓");
+    } catch (error) {
+      setFeedbackStatus(error instanceof Error ? error.message : "Unable to send feedback.");
+    } finally {
+      setSendingFeedback(false);
     }
   }
 
@@ -143,10 +168,41 @@ export default function AccountPage() {
         {status && !showDelete && <p className="small">{status}</p>}
       </section>
 
-      <section className="card account-section">
+      <section className="card account-section feedback-card">
         <div className="label">feedback</div>
-        <p className="small">A simple place to send app feedback will live here.</p>
-        <button className="secondary" type="button" disabled>feedback coming soon</button>
+        <p className="small">Send a comment or report a bug. It goes to info@jawdroppuh.lol.</p>
+        {account.emailVerified ? (
+          <form className="grid" onSubmit={sendFeedback}>
+            <label className="label">
+              type
+              <select
+                value={feedbackType}
+                onChange={(event) => setFeedbackType(event.target.value as "comment" | "bug")}
+              >
+                <option value="comment">comment</option>
+                <option value="bug">bug report</option>
+              </select>
+            </label>
+            <label className="label">
+              message
+              <textarea
+                required
+                minLength={3}
+                maxLength={4000}
+                rows={6}
+                value={feedbackMessage}
+                placeholder={feedbackType === "bug" ? "what happened, and what did you expect?" : "what would you like to share?"}
+                onChange={(event) => setFeedbackMessage(event.target.value)}
+              />
+            </label>
+            {feedbackStatus && <p className={feedbackStatus.includes("✓") ? "small" : "form-error"}>{feedbackStatus}</p>}
+            <button type="submit" disabled={sendingFeedback || feedbackMessage.trim().length < 3}>
+              {sendingFeedback ? "sending…" : "send feedback"}
+            </button>
+          </form>
+        ) : (
+          <p className="small">Confirm your email before sending feedback.</p>
+        )}
       </section>
 
       {account.emailVerified && <section className="card danger-zone">

@@ -24,6 +24,7 @@ async function sendEmail(input: {
   text: string;
   html: string;
   idempotencyKey: string;
+  replyTo?: string;
 }) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.EMAIL_FROM;
@@ -42,6 +43,7 @@ async function sendEmail(input: {
       subject: input.subject,
       text: input.text,
       html: input.html,
+      reply_to: input.replyTo,
     }),
   });
 
@@ -81,5 +83,29 @@ export async function sendPasswordResetEmail(user: { id: string; email: string }
     text: `Reset your Daily Frame password: ${link}\n\nThis link expires in one hour. If you did not request it, you can ignore this email.`,
     html: `<p>Use this link to reset your Daily Frame password.</p><p><a href="${safeLink}">reset password</a></p><p>This link expires in one hour. If you did not request it, you can ignore this email.</p>`,
     idempotencyKey: `reset-${user.id}-${token.slice(0, 12)}`,
+  });
+}
+
+export async function sendFeedbackEmail(input: {
+  userId: string;
+  email: string;
+  type: "comment" | "bug";
+  message: string;
+  pageUrl: string | null;
+  userAgent: string | null;
+}) {
+  const recipient = process.env.FEEDBACK_TO?.trim() || "info@jawdroppuh.lol";
+  const label = input.type === "bug" ? "Bug report" : "Comment";
+  const page = input.pageUrl ?? "Not provided";
+  const userAgent = input.userAgent ?? "Not provided";
+  const messageHtml = escapeHtml(input.message).replaceAll("\n", "<br>");
+
+  await sendEmail({
+    to: recipient,
+    replyTo: input.email,
+    subject: `[Daily Frame] ${label}`,
+    text: `${label} from ${input.email}\n\n${input.message}\n\nPage: ${page}\nBrowser: ${userAgent}`,
+    html: `<p><strong>${label}</strong> from <a href="mailto:${escapeHtml(input.email)}">${escapeHtml(input.email)}</a></p><p>${messageHtml}</p><hr><p><small>Page: ${escapeHtml(page)}<br>Browser: ${escapeHtml(userAgent)}</small></p>`,
+    idempotencyKey: `feedback-${input.userId}-${Date.now()}`,
   });
 }

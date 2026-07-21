@@ -1,4 +1,5 @@
 import "./globals.css";
+import { SiteFooter } from "@/components/site-footer";
 
 export const metadata = {
   title: "Daily Frame",
@@ -8,7 +9,10 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        <SiteFooter />
+      </body>
     </html>
   );
 }
