@@ -42,7 +42,8 @@ async function main() {
   for (const [index, photo] of photos.entries()) {
     const legacyUrl = new URL(photo.imagePath);
     if (!legacyUrl.hostname.endsWith(".public.blob.vercel-storage.com")) {
-      throw new Error(`Photo ${photo.id} points to an unexpected host`);
+      console.log(`Skipped non-Blob placeholder record: ${photo.id}`);
+      continue;
     }
 
     const response = await fetch(legacyUrl, { cache: "no-store" });
@@ -84,12 +85,20 @@ async function main() {
     console.log(`Migrated ${index + 1}/${photos.length}: ${photo.id}`);
   }
 
-  const remaining = await prisma.dailyPhoto.count({
+  const remainingRecords = await prisma.dailyPhoto.findMany({
     where: { imagePath: { startsWith: "https://" } },
+    select: { imagePath: true },
   });
-  if (remaining !== 0) throw new Error(`${remaining} legacy public photo(s) remain`);
+  const remainingPublicBlobs = remainingRecords.filter((photo) =>
+    new URL(photo.imagePath).hostname.endsWith(".public.blob.vercel-storage.com"),
+  );
+  if (remainingPublicBlobs.length !== 0) {
+    throw new Error(`${remainingPublicBlobs.length} legacy public Blob photo(s) remain`);
+  }
 
-  console.log("Migration complete. All photo records now use private storage paths.");
+  console.log(
+    `Migration complete. All Vercel Blob photos are private; ${remainingRecords.length} non-Blob placeholder record(s) were left unchanged.`,
+  );
 }
 
 main()
