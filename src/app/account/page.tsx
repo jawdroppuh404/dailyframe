@@ -6,6 +6,7 @@ import { AchievementBadges } from "@/components/achievement-badges";
 import { Account, AuthForm } from "@/components/auth-form";
 import { VerificationControls } from "@/components/verification-gate";
 import type { Achievement } from "@/lib/achievements";
+import { appPath } from "@/lib/app-path";
 
 type StreakProgress = {
   streak: number;
@@ -25,7 +26,7 @@ export default function AccountPage() {
   const [progress, setProgress] = useState<StreakProgress | null>(null);
 
   useEffect(() => {
-    void fetch("/api/auth/session", { cache: "no-store" })
+    void fetch(appPath("/api/auth/session"), { cache: "no-store" })
       .then((response) => response.json())
       .then((data) => setAccount(data.user ?? null))
       .catch(() => setAccount(null));
@@ -33,7 +34,7 @@ export default function AccountPage() {
 
   useEffect(() => {
     if (!account?.emailVerified) return;
-    void fetch("/api/progress", { cache: "no-store" })
+    void fetch(appPath("/api/progress"), { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error("Unable to load streak progress.");
         return response.json();
@@ -47,14 +48,14 @@ export default function AccountPage() {
     setDeleting(true);
     setStatus("");
     try {
-      const response = await fetch("/api/account/delete", {
+      const response = await fetch(appPath("/api/account/delete"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password, confirmation }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Unable to delete account.");
-      window.location.href = "/";
+      window.location.href = appPath();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to delete account.");
       setDeleting(false);
@@ -66,7 +67,7 @@ export default function AccountPage() {
     setSendingReset(true);
     setStatus("");
     try {
-      const response = await fetch("/api/auth/password-reset/request", {
+      const response = await fetch(appPath("/api/auth/password-reset/request"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: account.email }),

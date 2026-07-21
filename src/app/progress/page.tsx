@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AccountNav } from "@/components/account-nav";
 import { Account, AuthForm } from "@/components/auth-form";
 import { VerificationGate } from "@/components/verification-gate";
+import { appPath } from "@/lib/app-path";
 
 export default function ProgressPage() {
   const [account, setAccount] = useState<Account | null | undefined>(undefined);
@@ -15,7 +16,7 @@ export default function ProgressPage() {
   async function loadProgress(user: Account) {
     setAccount(user);
     if (!user.emailVerified) return;
-    const response = await fetch("/api/progress", { cache: "no-store" });
+    const response = await fetch(appPath("/api/progress"), { cache: "no-store" });
     if (response.status === 401) return setAccount(null);
     const data = await response.json();
     setTodayKey(data.todayKey ?? "");
@@ -25,7 +26,7 @@ export default function ProgressPage() {
   }
 
   useEffect(() => {
-    void fetch("/api/auth/session", { cache: "no-store" })
+    void fetch(appPath("/api/auth/session"), { cache: "no-store" })
       .then((response) => response.json())
       .then((data) => data.user ? loadProgress(data.user) : setAccount(null))
       .catch(() => setAccount(null));

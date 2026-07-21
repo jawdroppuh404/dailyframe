@@ -1,5 +1,6 @@
 import { AuthTokenType } from "@prisma/client";
 import { createAuthToken } from "./auth";
+import { publicAppUrl } from "./app-path";
 
 const VERIFY_LIFETIME_MS = 24 * 60 * 60 * 1000;
 const RESET_LIFETIME_MS = 60 * 60 * 1000;
@@ -47,13 +48,13 @@ async function sendEmail(input: {
   if (!response.ok) throw new Error(`EMAIL_SEND_FAILED_${response.status}`);
 }
 
-export async function sendVerificationEmail(user: { id: string; email: string }, origin: string) {
+export async function sendVerificationEmail(user: { id: string; email: string }, requestUrl: string) {
   const { token } = await createAuthToken(
     user.id,
     AuthTokenType.EMAIL_VERIFICATION,
     VERIFY_LIFETIME_MS,
   );
-  const link = `${origin}/verify-email?token=${encodeURIComponent(token)}`;
+  const link = `${publicAppUrl(requestUrl)}/verify-email?token=${encodeURIComponent(token)}`;
   const safeLink = escapeHtml(link);
 
   await sendEmail({
@@ -65,13 +66,13 @@ export async function sendVerificationEmail(user: { id: string; email: string },
   });
 }
 
-export async function sendPasswordResetEmail(user: { id: string; email: string }, origin: string) {
+export async function sendPasswordResetEmail(user: { id: string; email: string }, requestUrl: string) {
   const { token } = await createAuthToken(
     user.id,
     AuthTokenType.PASSWORD_RESET,
     RESET_LIFETIME_MS,
   );
-  const link = `${origin}/reset-password?token=${encodeURIComponent(token)}`;
+  const link = `${publicAppUrl(requestUrl)}/reset-password?token=${encodeURIComponent(token)}`;
   const safeLink = escapeHtml(link);
 
   await sendEmail({

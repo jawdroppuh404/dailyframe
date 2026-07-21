@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { appPath } from "@/lib/app-path";
 
 export function VerificationControls({ email }: { email: string }) {
   const [status, setStatus] = useState("Check your inbox for the confirmation link.");
@@ -9,7 +10,7 @@ export function VerificationControls({ email }: { email: string }) {
   async function resend() {
     setSending(true);
     try {
-      const response = await fetch("/api/auth/resend-verification", { method: "POST" });
+      const response = await fetch(appPath("/api/auth/resend-verification"), { method: "POST" });
       const data = await response.json();
       setStatus(response.ok ? "Confirmation email sent." : data.error ?? "Unable to send email.");
     } catch {
@@ -20,8 +21,8 @@ export function VerificationControls({ email }: { email: string }) {
   }
 
   async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    window.location.href = "/";
+    await fetch(appPath("/api/auth/logout"), { method: "POST" });
+    window.location.href = appPath();
   }
 
   return (

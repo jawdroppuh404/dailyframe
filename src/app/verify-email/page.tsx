@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { appPath } from "@/lib/app-path";
 
 export default function VerifyEmailPage() {
   const [status, setStatus] = useState("confirming your email…");
@@ -13,7 +14,7 @@ export default function VerifyEmailPage() {
       return;
     }
 
-    void fetch("/api/auth/verify-email", {
+    void fetch(appPath("/api/auth/verify-email"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token }),
@@ -21,7 +22,7 @@ export default function VerifyEmailPage() {
       .then(async (response) => {
         const data = await response.json();
         if (!response.ok) throw new Error(data.error ?? "Unable to confirm email.");
-        window.history.replaceState({}, "", "/verify-email");
+        window.history.replaceState({}, "", appPath("/verify-email"));
         setVerified(true);
         setStatus("Email confirmed. Daily Frame is unlocked.");
       })
@@ -33,7 +34,7 @@ export default function VerifyEmailPage() {
       <div className="h1">Email confirmation</div>
       <section className="card auth-card grid">
         <p className="value">{status}</p>
-        {verified && <a className="button-link" href="/">continue to today’s prompt</a>}
+        {verified && <a className="button-link" href={appPath()}>continue to today’s prompt</a>}
       </section>
     </main>
   );

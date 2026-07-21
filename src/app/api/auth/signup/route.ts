@@ -59,7 +59,7 @@ export async function POST(request: Request) {
     try {
       await sendVerificationEmail(
         { id: user.id, email: user.email! },
-        new URL(request.url).origin,
+        request.url,
       );
     } catch (error) {
       console.error("Unable to send verification email", error);

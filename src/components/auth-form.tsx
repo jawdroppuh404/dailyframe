@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { appPath } from "@/lib/app-path";
 import { clearLegacyUserId, getLegacyUserId } from "@/lib/client-user";
 
 export type Account = { id: string; email: string; emailVerified: boolean };
@@ -19,7 +20,7 @@ export function AuthForm({ onAuthenticated }: { onAuthenticated: (user: Account)
     setError("");
 
     try {
-      const response = await fetch(`/api/auth/${mode}`, {
+      const response = await fetch(appPath(`/api/auth/${mode}`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -47,7 +48,7 @@ export function AuthForm({ onAuthenticated }: { onAuthenticated: (user: Account)
     setSubmitting(true);
     setError("");
     try {
-      const response = await fetch("/api/auth/password-reset/request", {
+      const response = await fetch(appPath("/api/auth/password-reset/request"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),

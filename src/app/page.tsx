@@ -5,6 +5,7 @@ import { AccountNav } from "@/components/account-nav";
 import { Account, AuthForm } from "@/components/auth-form";
 import { SharePromptButton } from "@/components/share-prompt-button";
 import { VerificationGate } from "@/components/verification-gate";
+import { appPath } from "@/lib/app-path";
 
 type Prompt = {
   id: string;
@@ -61,7 +62,7 @@ export default function TodayPage() {
     setLoading(true);
     setStatus("");
     try {
-      const response = await fetch("/api/today", { cache: "no-store" });
+      const response = await fetch(appPath("/api/today"), { cache: "no-store" });
       if (response.status === 401) {
         setAccount(null);
         return;
@@ -82,7 +83,7 @@ export default function TodayPage() {
   }
 
   useEffect(() => {
-    void fetch("/api/auth/session", { cache: "no-store" })
+    void fetch(appPath("/api/auth/session"), { cache: "no-store" })
       .then((response) => response.json())
       .then((data) => {
         setAccount(data.user ?? null);
@@ -96,7 +97,7 @@ export default function TodayPage() {
   }, []);
 
   async function getStuckTip() {
-    const response = await fetch("/api/stuck", { cache: "no-store" });
+    const response = await fetch(appPath("/api/stuck"), { cache: "no-store" });
     const data = await response.json();
     if (response.ok) setTip(data.tip ?? "");
   }
@@ -122,12 +123,12 @@ export default function TodayPage() {
         file,
         {
           access: "private",
-          handleUploadUrl: "/api/blob",
+          handleUploadUrl: appPath("/api/blob"),
           multipart: file.size > 5 * 1024 * 1024,
         }
       );
 
-      const response = await fetch("/api/photo/upload", {
+      const response = await fetch(appPath("/api/photo/upload"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

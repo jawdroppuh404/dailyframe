@@ -24,7 +24,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    await sendVerificationEmail(user, new URL(request.url).origin);
+    await sendVerificationEmail(user, request.url);
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Unable to resend verification email", error);

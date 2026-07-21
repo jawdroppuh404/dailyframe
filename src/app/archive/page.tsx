@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { appPath } from "@/lib/app-path";
 
 type Prompt = { id: string; title: string; constraint?: string | null; twist?: string | null; tags?: string | null };
 
@@ -8,7 +9,7 @@ export default function ArchivePage() {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
 
   useEffect(() => {
-    fetch("/api/archive", { cache: "no-store" })
+    fetch(appPath("/api/archive"), { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => setPrompts(d.prompts))
       .catch(() => setPrompts([]));
@@ -17,9 +18,9 @@ export default function ArchivePage() {
   return (
     <main className="container">
       <nav className="nav">
-        <a href="/">today</a>
-        <a href="/archive">archive</a>
-        <a href="/progress">progress</a>
+        <a href={appPath()}>today</a>
+        <a href={appPath("/archive")}>archive</a>
+        <a href={appPath("/progress")}>progress</a>
       </nav>
 
       <div className="h1">Prompt Archive</div>

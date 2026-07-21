@@ -31,7 +31,7 @@ export async function POST(request: Request) {
   try {
     await sendPasswordResetEmail(
       { id: user.id, email: user.email },
-      new URL(request.url).origin,
+      request.url,
     );
   } catch (error) {
     console.error("Unable to send password reset email", error);

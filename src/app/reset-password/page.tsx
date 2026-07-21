@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { appPath } from "@/lib/app-path";
 
 export default function ResetPasswordPage() {
   const [token, setToken] = useState("");
@@ -20,14 +21,14 @@ export default function ResetPasswordPage() {
     setSubmitting(true);
     setStatus("");
     try {
-      const response = await fetch("/api/auth/password-reset/confirm", {
+      const response = await fetch(appPath("/api/auth/password-reset/confirm"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, password }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Unable to reset password.");
-      window.history.replaceState({}, "", "/reset-password");
+      window.history.replaceState({}, "", appPath("/reset-password"));
       setComplete(true);
       setStatus("Password updated. You can log in now.");
     } catch (error) {
@@ -44,7 +45,7 @@ export default function ResetPasswordPage() {
         {complete ? (
           <div className="grid">
             <p className="value">{status}</p>
-            <a className="button-link" href="/">return to login</a>
+            <a className="button-link" href={appPath()}>return to login</a>
           </div>
         ) : (
           <form className="grid" onSubmit={submit}>
