@@ -5,10 +5,11 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
-    "vercel-build": "prisma generate && prisma migrate deploy && next build",
+    "vercel-build": "prisma generate && prisma migrate deploy && npm run migrate:private-photos && next build",
     "start": "next start",
     "postinstall": "prisma generate",
     "seed": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed.ts",
+    "migrate:private-photos": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/migrate-private-photos.ts",
     "test": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' tests/prompt-rotation.test.ts && ts-node --compiler-options '{\"module\":\"CommonJS\"}' tests/auth.test.ts"
   },
   "dependencies": {
