@@ -1,12 +1,12 @@
 const USER_ID_KEY = "dailyframe_user_id";
 
-export function getOrCreateUserId(): string {
-  if (typeof window === "undefined") return "";
+export function getLegacyUserId(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(USER_ID_KEY);
+}
 
-  const existing = window.localStorage.getItem(USER_ID_KEY);
-  if (existing) return existing;
-
-  const fresh = `user_${window.crypto.randomUUID()}`;
-  window.localStorage.setItem(USER_ID_KEY, fresh);
-  return fresh;
+export function clearLegacyUserId() {
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem(USER_ID_KEY);
+  }
 }

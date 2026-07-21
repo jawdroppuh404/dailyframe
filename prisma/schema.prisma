@@ -11,9 +11,23 @@ model User {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   name      String?
+  email     String?  @unique
+  passwordHash String?
   timezone  String   @default("America/New_York")
 
   photos    DailyPhoto[]
+  sessions  Session[]
+}
+
+model Session {
+  id        String   @id
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Prompt {

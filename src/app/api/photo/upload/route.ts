@@ -1,44 +1,39 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { dateKeyInTZ } from "@/lib/date";
+import { getAuthenticatedUser } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
-function requireUserId(req: Request) {
-  const userId = req.headers.get("x-user-id");
-  return userId && userId.trim().length > 0 ? userId.trim() : null;
-}
-
 export async function POST(req: Request) {
-  const userId = requireUserId(req);
-  if (!userId) {
-    return NextResponse.json({ error: "Missing x-user-id header" }, { status: 400 });
+  const user = await getAuthenticatedUser(req);
+  if (!user) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
-
-  // Ensure user exists (race-safe)
-  const user = await prisma.user.upsert({
-    where: { id: userId },
-    update: {},
-    create: { id: userId, timezone: "America/New_York" },
-  });
 
   const body = await req.json().catch(() => null);
-  const imagePath = body?.imagePath as string | undefined;
-  const caption = (body?.caption as string | undefined) ?? "";
-  const mood = (body?.mood as string | undefined) ?? "";
-  const promptId = (body?.promptId as string | null | undefined) ?? null;
-
-  if (!imagePath) {
-    return NextResponse.json({ error: "Missing imagePath" }, { status: 400 });
-  }
-
+  const pathname = typeof body?.pathname === "string" ? body.pathname : "";
+  const caption = typeof body?.caption === "string" ? body.caption.slice(0, 500) : "";
+  const mood = typeof body?.mood === "string" ? body.mood.slice(0, 50) : "";
+  const promptId = typeof body?.promptId === "string" && body.promptId ? body.promptId : null;
   const todayKey = dateKeyInTZ(new Date(), user.timezone);
 
+  if (!pathname.startsWith(`users/${user.id}/${todayKey}/`)) {
+    return NextResponse.json({ error: "Invalid private photo path." }, { status: 400 });
+  }
+
   const saved = await prisma.dailyPhoto.upsert({
-    where: { userId_dateKey: { userId, dateKey: todayKey } },
-    update: { imagePath, caption, mood, promptId },
-    create: { userId, dateKey: todayKey, imagePath, caption, mood, promptId },
+    where: { userId_dateKey: { userId: user.id, dateKey: todayKey } },
+    update: { imagePath: pathname, caption, mood, promptId },
+    create: {
+      userId: user.id,
+      dateKey: todayKey,
+      imagePath: pathname,
+      caption,
+      mood,
+      promptId,
+    },
   });
 
-  return NextResponse.json({ ok: true, photo: saved });
+  return NextResponse.json({ ok: true, photoId: saved.id });
 }

@@ -40,9 +40,26 @@ hr {
 
 .nav {
   display: flex;
+  align-items: center;
   gap: 16px;
   margin-bottom: 16px;
 }
+
+.nav-button {
+  border: 0;
+  padding: 0;
+  margin-left: auto;
+  color: var(--text2);
+}
+
+.account-email { margin: -8px 0 16px; }
+.auth-shell { padding-top: 10vh; }
+.auth-card { margin-top: 20px; }
+.auth-tabs { display: flex; gap: 8px; }
+.auth-tabs button { flex: 1; }
+.auth-tabs button.active { border-color: var(--text2); }
+.form-error { color: #ff8a8a; font-size: 12px; margin: 4px 0; }
+.status-card { margin-top: 12px; word-break: break-word; }
 
 .card {
   border: 1px solid var(--line);
@@ -81,6 +98,7 @@ button {
 }
 
 button:hover { background: var(--hover); }
+button:disabled { cursor: not-allowed; opacity: 0.45; }
 
 button.secondary { color: var(--text2); }
 

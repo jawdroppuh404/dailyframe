@@ -1,34 +1,48 @@
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
+import { getAuthenticatedUser } from "@/lib/auth";
+import { dateKeyInTZ } from "@/lib/date";
 
 export const runtime = "nodejs";
 
-export async function POST(request: Request): Promise<NextResponse> {
+const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+
+export async function POST(request: Request) {
+  const token = process.env.PRIVATE_BLOB_READ_WRITE_TOKEN;
+  if (!token) {
+    return NextResponse.json({ error: "Private storage is not configured." }, { status: 503 });
+  }
+
   const body = (await request.json()) as HandleUploadBody;
 
   try {
-    const jsonResponse = await handleUpload({
+    const response = await handleUpload({
       body,
       request,
-      onBeforeGenerateToken: async () => {
+      token,
+      onBeforeGenerateToken: async (pathname) => {
+        const user = await getAuthenticatedUser(request);
+        if (!user) throw new Error("Authentication required");
+
+        const todayKey = dateKeyInTZ(new Date(), user.timezone);
+        const requiredPrefix = `users/${user.id}/${todayKey}/`;
+        if (!pathname.startsWith(requiredPrefix)) {
+          throw new Error("Invalid upload path");
+        }
+
         return {
-          allowedContentTypes: [
-            "image/jpeg",
-            "image/png",
-            "image/webp",
-            "image/heic",
-            "image/heif",
-          ],
+          allowedContentTypes: ["image/jpeg", "image/png", "image/webp"],
+          maximumSizeInBytes: MAX_UPLOAD_BYTES,
           addRandomSuffix: true,
         };
       },
       onUploadCompleted: async () => {},
     });
 
-    return NextResponse.json(jsonResponse);
+    return NextResponse.json(response);
   } catch (error) {
     return NextResponse.json(
-      { error: (error as Error).message },
+      { error: error instanceof Error ? error.message : "Upload authorization failed." },
       { status: 400 }
     );
   }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { getOrCreateUserId } from "@/lib/client-user";
+import { AccountNav } from "@/components/account-nav";
+import { Account, AuthForm } from "@/components/auth-form";
 
 type Prompt = {
   id: string;
@@ -12,7 +13,7 @@ type Prompt = {
 
 type Photo =
   | {
-      imagePath: string;
+      imageUrl: string;
       caption?: string | null;
       mood?: string | null;
       promptId?: string | null;
@@ -30,203 +31,146 @@ function isHeicLike(file: File) {
 }
 
 async function heicToJpeg(file: File): Promise<File> {
-  // IMPORTANT: load heic2any only in the browser
   const { default: heic2any } = await import("heic2any");
-
   const out = (await heic2any({
     blob: file,
     toType: "image/jpeg",
     quality: 0.9,
   })) as Blob;
-
   const baseName = file.name.replace(/\.(heic|heif)$/i, "");
   return new File([out], `${baseName}.jpg`, { type: "image/jpeg" });
 }
 
 export default function TodayPage() {
-  const [userId, setUserId] = useState<string>("");
-
+  const [account, setAccount] = useState<Account | null | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [todayKey, setTodayKey] = useState("");
   const [prompt, setPrompt] = useState<Prompt | null>(null);
   const [photo, setPhoto] = useState<Photo>(null);
-
   const [caption, setCaption] = useState("");
-  const [mood, setMood] = useState<string>("");
-  const [tip, setTip] = useState<string>("");
-
+  const [mood, setMood] = useState("");
+  const [tip, setTip] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [status, setStatus] = useState<string>("");
-
+  const [status, setStatus] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    setUserId(getOrCreateUserId());
-  }, []);
-
-  async function load(uid: string) {
-    if (!uid) return;
-
+  async function loadToday() {
     setLoading(true);
     setStatus("");
-
     try {
-      const res = await fetch("/api/today", {
-        cache: "no-store",
-        headers: { "x-user-id": uid },
-      });
-
-      const text = await res.text();
-
-      if (!res.ok) {
-        console.error("LOAD /api/today failed", res.status, text);
-        setStatus(`load failed: ${res.status} ${text.slice(0, 200)}`);
-        setLoading(false);
+      const response = await fetch("/api/today", { cache: "no-store" });
+      if (response.status === 401) {
+        setAccount(null);
         return;
       }
-
-      let data: any;
-      try {
-        data = JSON.parse(text);
-      } catch {
-        console.error("LOAD /api/today returned non-JSON", text);
-        setStatus(`load returned non-JSON: ${text.slice(0, 200)}`);
-        setLoading(false);
-        return;
-      }
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Unable to load today.");
 
       setTodayKey(data.todayKey ?? "");
       setPrompt(data.prompt ?? null);
       setPhoto(data.photo ?? null);
       setCaption(data.photo?.caption ?? "");
       setMood(data.photo?.mood ?? "");
-      setLoading(false);
-    } catch (e: any) {
-      console.error("LOAD error", e);
-      setStatus(`load error: ${e?.message ?? String(e)}`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to load today.");
+    } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    if (!userId) return;
-    void load(userId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+    void fetch("/api/auth/session", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((data) => {
+        setAccount(data.user ?? null);
+        if (data.user) return loadToday();
+        setLoading(false);
+      })
+      .catch(() => {
+        setAccount(null);
+        setLoading(false);
+      });
+  }, []);
 
   async function getStuckTip() {
-    try {
-      const res = await fetch("/api/stuck", { cache: "no-store" });
-      const text = await res.text();
-
-      if (!res.ok) {
-        setStatus(`stuck failed: ${res.status} ${text.slice(0, 200)}`);
-        return;
-      }
-
-      const data = JSON.parse(text);
-      setTip(data.tip ?? "");
-    } catch (e: any) {
-      setStatus(`stuck error: ${e?.message ?? String(e)}`);
-    }
+    const response = await fetch("/api/stuck", { cache: "no-store" });
+    const data = await response.json();
+    if (response.ok) setTip(data.tip ?? "");
   }
 
   async function doUpload() {
-    if (!selectedFile) {
-      setStatus("no file selected");
-      return;
-    }
-    if (!userId) {
-      setStatus("userId not ready yet — refresh and try again");
-      return;
-    }
-
+    if (!selectedFile) return setStatus("no file selected");
+    if (!account) return setStatus("log in before uploading");
     setUploading(true);
-    setStatus(
-      `prepping: ${selectedFile.name} (${selectedFile.type || "unknown"}, ${selectedFile.size} bytes)`
-    );
+    setStatus("preparing photo…");
 
     try {
-      let fileToUpload = selectedFile;
-
-      // ✅ Convert HEIC/HEIF to JPEG for browser compatibility
-      if (isHeicLike(fileToUpload)) {
-        setStatus("converting HEIC → JPEG…");
-        fileToUpload = await heicToJpeg(fileToUpload);
-        setStatus(
-          `converted: ${fileToUpload.name} (${fileToUpload.type}, ${fileToUpload.size} bytes)`
-        );
+      let file = selectedFile;
+      if (isHeicLike(file)) {
+        setStatus("converting HEIC to JPEG…");
+        file = await heicToJpeg(file);
       }
 
-      // ✅ IMPORTANT: dynamic import so build/prerender won't touch window
+      setStatus("uploading privately…");
       const { upload } = await import("@vercel/blob/client");
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-").slice(-120) || "photo.jpg";
+      const blob = await upload(
+        `users/${account.id}/${todayKey}/${safeName}`,
+        file,
+        {
+          access: "private",
+          handleUploadUrl: "/api/blob",
+          multipart: file.size > 5 * 1024 * 1024,
+        }
+      );
 
-      // 1) Upload to Vercel Blob
-      setStatus("uploading to blob…");
-      const blob = await upload(fileToUpload.name, fileToUpload, {
-        access: "public",
-        handleUploadUrl: "/api/blob",
-      });
-
-      setStatus(`blob uploaded: ${blob.url}`);
-
-      // 2) Save metadata
-      const res = await fetch("/api/photo/upload", {
+      const response = await fetch("/api/photo/upload", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": userId,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          imagePath: blob.url,
+          pathname: blob.pathname,
           caption,
           mood,
           promptId: prompt?.id ?? null,
         }),
       });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Upload failed.");
 
-      const text = await res.text();
-      if (!res.ok) {
-        setStatus(`db save failed: ${res.status} ${text.slice(0, 250)}`);
-        return;
-      }
-
-      setStatus("saved ✓");
-
+      setStatus("saved privately ✓");
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
-
-      await load(userId);
-    } catch (e: any) {
-      console.error("UPLOAD error", e);
-      setStatus(`upload error: ${e?.message ?? String(e)}`);
+      await loadToday();
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Upload failed.");
     } finally {
       setUploading(false);
     }
   }
 
-  if (!userId) return <main className="container">loading…</main>;
-  if (loading) return <main className="container">loading…</main>;
+  if (account === undefined || loading) return <main className="container">loading…</main>;
+  if (!account) {
+    return (
+      <AuthForm
+        onAuthenticated={(user) => {
+          setAccount(user);
+          void loadToday();
+        }}
+      />
+    );
+  }
 
   return (
     <main className="container">
-      <nav className="nav">
-        <a href="/">today</a>
-        <a href="/archive">archive</a>
-        <a href="/progress">progress</a>
-      </nav>
-
+      <AccountNav email={account.email} />
       <div className="h1">Daily Frame</div>
       <p className="meta">today: {todayKey}</p>
-      <p className="small">user: {userId}</p>
 
       {status && (
-        <section className="card" style={{ marginTop: 12 }}>
+        <section className="card status-card">
           <div className="label">status</div>
-          <p className="value" style={{ wordBreak: "break-word" }}>
-            {status}
-          </p>
+          <p className="value">{status}</p>
         </section>
       )}
 
@@ -234,60 +178,37 @@ export default function TodayPage() {
         <section className="card" style={{ marginTop: 12 }}>
           <div className="label">today’s prompt</div>
           <div className="prompt">{prompt.title}</div>
-
-          {prompt.constraint && (
-            <>
-              <div className="label">constraint</div>
-              <p className="value">{prompt.constraint}</p>
-            </>
-          )}
-
-          {prompt.twist && (
-            <>
-              <div className="label">optional twist</div>
-              <p className="value">{prompt.twist}</p>
-            </>
-          )}
-
+          {prompt.constraint && <><div className="label">constraint</div><p className="value">{prompt.constraint}</p></>}
+          {prompt.twist && <><div className="label">optional twist</div><p className="value">{prompt.twist}</p></>}
           <div style={{ marginTop: 12 }}>
             <button className="secondary" type="button" onClick={() => void getStuckTip()}>
               i’m stuck →
             </button>
-            {tip && (
-              <p className="small" style={{ marginTop: 10 }}>
-                <em>{tip}</em>
-              </p>
-            )}
+            {tip && <p className="small"><em>{tip}</em></p>}
           </div>
         </section>
       )}
 
       <section style={{ marginTop: 18 }}>
-        <div className="label">today’s photo</div>
-
-        {photo?.imagePath ? (
+        <div className="label">today’s private photo</div>
+        {photo?.imageUrl ? (
           <div style={{ marginTop: 10 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="photo" src={photo.imagePath} alt="today" />
-            <p className="small" style={{ marginTop: 10 }}>
-              you can replace this until midnight
-            </p>
+            <img className="photo" src={photo.imageUrl} alt="today" />
+            <p className="small">only your signed-in account can load this photo.</p>
           </div>
         ) : (
-          <p className="small" style={{ marginTop: 10 }}>
-            no photo yet. upload one to lock in your day.
-          </p>
+          <p className="small">no photo yet. upload one to lock in your day.</p>
         )}
 
         <div className="grid" style={{ marginTop: 12 }}>
           <label className="label">
             caption (optional)
-            <input value={caption} onChange={(e) => setCaption(e.target.value)} />
+            <input value={caption} maxLength={500} onChange={(event) => setCaption(event.target.value)} />
           </label>
-
           <label className="label">
             mood (optional)
-            <select value={mood} onChange={(e) => setMood(e.target.value)}>
+            <select value={mood} onChange={(event) => setMood(event.target.value)}>
               <option value="">—</option>
               <option value="Calm">calm</option>
               <option value="Moody">moody</option>
@@ -296,39 +217,24 @@ export default function TodayPage() {
               <option value="Gritty">gritty</option>
             </select>
           </label>
-
           <div className="label">
             choose file
-            <div style={{ display: "grid", gap: 10, marginTop: 8 }}>
+            <div className="grid" style={{ marginTop: 8 }}>
               <input
                 ref={fileInputRef}
                 type="file"
-                // ✅ allows HEIC selection in Finder; JPEG/PNG/etc still allowed
-                accept="image/*,.heic,.heif,image/heic,image/heif"
-                onChange={(e) => {
-                  const f = e.target.files?.[0] ?? null;
-                  setSelectedFile(f);
-                  if (f) setStatus(`selected: ${f.name}`);
-                }}
+                accept="image/jpeg,image/png,image/webp,.heic,.heif,image/heic,image/heif"
+                onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
               />
-
               <button
                 className="secondary"
                 type="button"
                 disabled={!selectedFile || uploading}
-                onClick={(e) => {
-                  e.preventDefault();
-                  void doUpload();
-                }}
+                onClick={() => void doUpload()}
               >
-                {uploading ? "uploading…" : "upload"}
+                {uploading ? "uploading…" : "upload privately"}
               </button>
-
-              {selectedFile && (
-                <p className="small">
-                  selected: <em>{selectedFile.name}</em>
-                </p>
-              )}
+              {selectedFile && <p className="small">selected: <em>{selectedFile.name}</em></p>}
             </div>
           </div>
         </div>

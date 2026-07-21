@@ -1,66 +1,62 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getOrCreateUserId } from "@/lib/client-user";
+import { AccountNav } from "@/components/account-nav";
+import { Account, AuthForm } from "@/components/auth-form";
 
 export default function ProgressPage() {
+  const [account, setAccount] = useState<Account | null | undefined>(undefined);
   const [todayKey, setTodayKey] = useState("");
   const [streak, setStreak] = useState(0);
   const [dates, setDates] = useState<string[]>([]);
 
-  useEffect(() => {
-    const userId = getOrCreateUserId();
+  async function loadProgress(user: Account) {
+    setAccount(user);
+    const response = await fetch("/api/progress", { cache: "no-store" });
+    if (response.status === 401) return setAccount(null);
+    const data = await response.json();
+    setTodayKey(data.todayKey ?? "");
+    setStreak(data.streak ?? 0);
+    setDates(data.dateKeysDesc ?? []);
+  }
 
-    fetch("/api/progress", {
-      cache: "no-store",
-      headers: { "x-user-id": userId },
-    })
-      .then((r) => r.json())
-      .then((d) => {
-        setTodayKey(d.todayKey);
-        setStreak(d.streak);
-        setDates(d.dateKeysDesc);
-      });
+  useEffect(() => {
+    void fetch("/api/auth/session", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((data) => data.user ? loadProgress(data.user) : setAccount(null))
+      .catch(() => setAccount(null));
   }, []);
 
-  const set = useMemo(() => new Set(dates), [dates]);
-
+  const completedDates = useMemo(() => new Set(dates), [dates]);
   const days = useMemo(() => {
     if (!todayKey) return [] as string[];
-    const d = new Date(todayKey + "T12:00:00Z");
-    const arr: string[] = [];
-    for (let i = 0; i < 28; i++) {
-      arr.push(d.toISOString().slice(0, 10));
-      d.setUTCDate(d.getUTCDate() - 1);
-    }
-    return arr;
+    const date = new Date(`${todayKey}T12:00:00Z`);
+    return Array.from({ length: 28 }, () => {
+      const key = date.toISOString().slice(0, 10);
+      date.setUTCDate(date.getUTCDate() - 1);
+      return key;
+    });
   }, [todayKey]);
+
+  if (account === undefined) return <main className="container">loading…</main>;
+  if (!account) return <AuthForm onAuthenticated={(user) => void loadProgress(user)} />;
 
   return (
     <main className="container">
-      <nav className="nav">
-        <a href="/">today</a>
-        <a href="/archive">archive</a>
-        <a href="/progress">progress</a>
-      </nav>
-
+      <AccountNav email={account.email} />
       <div className="h1">Your Progress</div>
       <p className="meta">current streak: {streak}</p>
-
       <div className="label">last 28 days</div>
       <div className="calendar" style={{ marginTop: 10 }}>
-        {days.map((k) => {
-          const done = set.has(k);
-          return (
-            <div
-              key={k}
-              className={`day ${done ? "done" : "dim"}`}
-              title={k}
-            >
-              {k.slice(8, 10)}
-            </div>
-          );
-        })}
+        {days.map((key) => (
+          <div
+            key={key}
+            className={`day ${completedDates.has(key) ? "done" : "dim"}`}
+            title={key}
+          >
+            {key.slice(8, 10)}
+          </div>
+        ))}
       </div>
     </main>
   );

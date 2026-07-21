@@ -7,6 +7,8 @@ A minimal hobbyist photography web app:
 - prompt archive
 - progress: streak + last 28 days grid
 - "i'm stuck" micro-prompts
+- email/password accounts with 30-day secure sessions
+- private, account-scoped photo storage
 
 The prompt library contains 365 challenges. A prompt is permanently assigned
 to each calendar date on first request. The rotation uses every active prompt
@@ -22,7 +24,7 @@ Theme: **white Courier text on black background**.
 npm install
 ```
 
-2) Set `DATABASE_URL` in `.env` (see `.env.example`)
+2) Set `DATABASE_URL` and `PRIVATE_BLOB_READ_WRITE_TOKEN` in `.env` (see `.env.example`)
 
 3) Migrate + seed
 
@@ -52,10 +54,14 @@ In your Vercel project:
 - Storage -> Add -> Postgres
 - Copy the **connection string** into an env var named `DATABASE_URL` (Production + Preview)
 
-### 4) Add Vercel Blob
-Storage -> Add -> Blob
+### 4) Add private Vercel Blob
+Storage -> Create Database -> Blob:
+- choose **Private** access
+- set the custom environment variable prefix to `PRIVATE_BLOB`
+- enable the read-write token environment variable
 
-(Blob env vars are added automatically. This app uploads images using the server-side `put()` API.)
+The resulting `PRIVATE_BLOB_READ_WRITE_TOKEN` is used only by authenticated
+server routes to authorize direct private uploads and serve account-owned photos.
 
 ### 5) Configure build command
 Project Settings -> Build & Development Settings:
@@ -83,7 +89,12 @@ npm run seed
 Open your Vercel URL, upload a photo, and check Progress.
 
 ## Notes
-- The MVP stores an anonymous user ID in each browser's local storage; clearing
-  browser storage starts a new local profile.
+- Accounts use normalized email addresses, scrypt password hashes, and hashed
+  30-day session tokens in secure, HTTP-only cookies.
+- When an existing anonymous browser creates an account, its prior photos and
+  streak are attached to that account once.
 - New users currently default to the `America/New_York` timezone.
-- Photos are stored on Vercel Blob; DB data is on Postgres
+- New photos are stored in private Vercel Blob storage and streamed only after
+  an ownership check. Existing public-store photos remain available through the
+  same authenticated proxy but cannot retroactively be made private in place.
+- Database data is stored in Postgres.
