@@ -19,8 +19,9 @@ export default function ArchivePage() {
     <main className="container">
       <nav className="nav">
         <a href={appPath()}>today</a>
-        <a href={appPath("/archive")}>archive</a>
         <a href={appPath("/progress")}>progress</a>
+        <a href={appPath("/account")}>account</a>
+        <a href={appPath("/archive")}>archive</a>
       </nav>
 
       <div className="h1">Prompt Archive</div>

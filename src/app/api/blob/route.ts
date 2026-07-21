@@ -25,8 +25,9 @@ export async function POST(request: Request) {
         if (!user) throw new Error("Authentication required");
 
         const todayKey = dateKeyInTZ(new Date(), user.timezone);
-        const requiredPrefix = `users/${user.id}/${todayKey}/`;
-        if (!pathname.startsWith(requiredPrefix)) {
+        const dailyPrefix = `users/${user.id}/${todayKey}/`;
+        const archivePrefix = `users/${user.id}/archive/`;
+        if (!pathname.startsWith(dailyPrefix) && !pathname.startsWith(archivePrefix)) {
           throw new Error("Invalid upload path");
         }
 

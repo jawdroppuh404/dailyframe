@@ -9,19 +9,16 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  const user = await getAuthenticatedUser(req);
-  if (!user) {
-    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
-  }
+  const user = await getAuthenticatedUser(req, { requireVerified: false });
 
-  const todayKey = dateKeyInTZ(new Date(), user.timezone);
+  const todayKey = dateKeyInTZ(new Date(), user?.timezone ?? "America/New_York");
 
   const prompt = await getOrAssignDailyPrompt(todayKey);
 
-  const photo = await prisma.dailyPhoto.findUnique({
+  const photo = user?.emailVerified ? await prisma.dailyPhoto.findUnique({
     where: { userId_dateKey: { userId: user.id, dateKey: todayKey } },
     select: { caption: true, mood: true, promptId: true, imagePath: true },
-  });
+  }) : null;
 
   const photoResponse = photo
     ? {

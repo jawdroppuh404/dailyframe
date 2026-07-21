@@ -16,6 +16,17 @@ type StreakProgress = {
   upcomingAchievements: Achievement[];
 };
 
+function LockMark() {
+  return (
+    <svg className="lock-mark" viewBox="0 0 24 24" aria-hidden="true">
+      <g fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="5" y="10" width="14" height="11" rx="2" />
+        <path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" />
+      </g>
+    </svg>
+  );
+}
+
 export default function AccountPage() {
   const [account, setAccount] = useState<Account | null | undefined>(undefined);
   const [showDelete, setShowDelete] = useState(false);
@@ -33,6 +44,7 @@ export default function AccountPage() {
   const [profileStatus, setProfileStatus] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
   const [showGearHelp, setShowGearHelp] = useState(false);
+  const [showRanksHelp, setShowRanksHelp] = useState(false);
 
   useEffect(() => {
     void fetch(appPath("/api/auth/session"), { cache: "no-store" })
@@ -142,11 +154,24 @@ export default function AccountPage() {
   }
 
   if (account === undefined) return <main className="container">loading…</main>;
-  if (!account) return <AuthForm onAuthenticated={setAccount} />;
+  if (!account) {
+    const initialMode = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("mode") === "signup" ? "signup" : "login";
+    return <AuthForm onAuthenticated={setAccount} initialMode={initialMode} />;
+  }
+
+  const rankRows = progress
+    ? [
+        ...progress.rankRoadmap.filter((item) => item.days <= 364 || item.days <= progress.bestStreak),
+        ...progress.rankRoadmap.filter((item) => item.days > 364 && item.days > progress.bestStreak).slice(0, 3),
+      ]
+    : [];
+  const hasHiddenRanks = Boolean(progress && progress.rankRoadmap.some(
+    (item) => item.days > 364 && item.days > progress.bestStreak && !rankRows.includes(item),
+  ));
 
   return (
     <main className="container">
-      <AccountNav account={account} />
+      <AccountNav account={account} showLogout />
       <div className="h1">My Account</div>
       <p className="meta">your streak, status, and account controls.</p>
 
@@ -173,21 +198,29 @@ export default function AccountPage() {
           )}
           <div className="upcoming-ranks">
             <div className="label">rank ladder</div>
-            {progress.rankRoadmap.map((item) => (
-              <div className="upcoming-rank" key={item.days}>
-                <div>
-                  <strong>{item.rank}</strong>
-                  <span>{item.gear}</span>
+            {rankRows.map((item) => {
+              const locked = item.days > 364 && item.days > progress.bestStreak;
+              return (
+                <div className={`upcoming-rank${locked ? " locked-rank" : ""}`} key={item.days}>
+                  <div>
+                    <strong>{locked ? <><LockMark /> locked</> : item.rank}</strong>
+                    <span>{locked ? `${item.days} streak days needed` : item.gear}</span>
+                  </div>
+                  {!locked && <span>
+                    {item.days === progress.achievement.days
+                      ? "current"
+                      : item.days < progress.achievement.days
+                        ? "unlocked"
+                        : `${item.days - progress.bestStreak} days`}
+                  </span>}
                 </div>
-                <span>
-                  {item.days === progress.achievement.days
-                    ? "current"
-                    : item.days < progress.achievement.days
-                      ? "unlocked"
-                      : `${item.days - progress.bestStreak} days`}
-                </span>
-              </div>
-            ))}
+              );
+            })}
+            {hasHiddenRanks && (
+              <button className="secondary show-ranks-button" type="button" onClick={() => setShowRanksHelp(true)}>
+                show all ranks
+              </button>
+            )}
           </div>
         </section>
       ) : account.emailVerified ? (
@@ -198,6 +231,15 @@ export default function AccountPage() {
           <p className="meta">confirm your address to unlock prompts, streaks, and ranks.</p>
           <VerificationControls email={account.email} />
         </section>
+      )}
+
+      {showRanksHelp && (
+        <div className="modal-backdrop" role="presentation" onClick={() => setShowRanksHelp(false)}>
+          <aside className="mini-modal" role="dialog" aria-modal="true" aria-label="Locked ranks" onClick={(event) => event.stopPropagation()}>
+            <button className="gear-help-close" type="button" aria-label="Close" onClick={() => setShowRanksHelp(false)}>×</button>
+            <strong>reach a longer streak to view locked ranks</strong>
+          </aside>
+        </div>
       )}
 
       <section className="card grid account-section">

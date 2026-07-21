@@ -16,7 +16,7 @@ const FIXED_ACHIEVEMENTS: Achievement[] = [
   { days: 28, rank: "Visual Storyteller", gear: "Fujifilm X-T50", rankIcon: "aperture", cameraIcon: "mirrorless" },
   { days: 90, rank: "Light Chaser", gear: "Sony α7C II", rankIcon: "flash", cameraIcon: "mirrorless" },
   { days: 180, rank: "Image Maker", gear: "Leica Q3 43", rankIcon: "sun", cameraIcon: "rangefinder" },
-  { days: 365, rank: "Master of Light", gear: "Hasselblad X2D II 100C", rankIcon: "print", cameraIcon: "medium-format" },
+  { days: 364, rank: "Master of Light", gear: "Hasselblad X2D II 100C", rankIcon: "print", cameraIcon: "medium-format" },
   { days: 730, rank: "Gallery Artist", gear: "Leica M11-P", rankIcon: "print", cameraIcon: "rangefinder" },
   { days: 1095, rank: "Silver Gelatin Master", gear: "ALPA 12 Plus System", rankIcon: "laurel", cameraIcon: "technical" },
   { days: 1460, rank: "Archive Keeper", gear: "Deardorff 8×10 View Camera", rankIcon: "laurel", cameraIcon: "technical" },
@@ -61,7 +61,7 @@ export function upcomingAchievements(bestStreak: number, limit = 6) {
 }
 
 export function achievementRoadmap(bestStreak: number) {
-  const annualThrough = Math.max(10, Math.floor(bestStreak / 365) + 3);
+  const annualThrough = Math.max(12, Math.floor(bestStreak / 365) + 6);
   return [
     ...FIXED_ACHIEVEMENTS,
     ...Array.from({ length: annualThrough - 5 }, (_, index) => annualAchievement(index + 6)),

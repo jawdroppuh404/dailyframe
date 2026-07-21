@@ -25,6 +25,29 @@ export async function GET(req: Request) {
   const dateKeysDesc = photos.map((p) => p.dateKey);
   const streak = computeStreak(dateKeysDesc, todayKey);
   const bestStreak = computeLongestStreak(dateKeysDesc);
+  const archivePhotos = await prisma.archivePhoto.findMany({
+    where: { userId: user.id },
+    select: { id: true, createdAt: true, promptDateKey: true, caption: true, mood: true },
+    orderBy: { createdAt: "desc" },
+  });
+  const previousPhotos = [
+    ...photos.filter((photo) => photo.dateKey < todayKey).map((photo) => ({
+      sortKey: `${photo.dateKey}T23:59:59.999Z`,
+      dateKey: photo.dateKey,
+      caption: photo.caption,
+      mood: photo.mood,
+      imageUrl: `/dailyframe/api/photo/file?dateKey=${encodeURIComponent(photo.dateKey)}`,
+      alternate: false,
+    })),
+    ...archivePhotos.map((photo) => ({
+      sortKey: photo.createdAt.toISOString(),
+      dateKey: photo.promptDateKey,
+      caption: photo.caption,
+      mood: photo.mood,
+      imageUrl: `/dailyframe/api/photo/file?archiveId=${encodeURIComponent(photo.id)}`,
+      alternate: true,
+    })),
+  ].sort((a, b) => b.sortKey.localeCompare(a.sortKey)).map(({ sortKey: _sortKey, ...photo }) => photo);
 
   return NextResponse.json(
     {
@@ -32,14 +55,7 @@ export async function GET(req: Request) {
       streak,
       bestStreak,
       dateKeysDesc,
-      previousPhotos: photos
-        .filter((photo) => photo.dateKey < todayKey)
-        .map((photo) => ({
-          dateKey: photo.dateKey,
-          caption: photo.caption,
-          mood: photo.mood,
-          imageUrl: `/dailyframe/api/photo/file?dateKey=${encodeURIComponent(photo.dateKey)}`,
-        })),
+      previousPhotos,
       achievement: achievementForStreak(bestStreak),
       rankRoadmap: achievementRoadmap(bestStreak),
       upcomingAchievements: upcomingAchievements(bestStreak),

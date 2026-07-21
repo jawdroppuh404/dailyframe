@@ -25,13 +25,13 @@ function wrapText(context: CanvasRenderingContext2D, text: string, maxWidth: num
   return lines;
 }
 
-function canvasBlob(canvas: HTMLCanvasElement) {
+export function canvasBlob(canvas: HTMLCanvasElement) {
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Unable to create card."))), "image/png");
   });
 }
 
-async function createPromptCard(prompt: SharePrompt) {
+export async function createPromptCard(prompt: SharePrompt, eyebrow = "today’s prompt") {
   const canvas = document.createElement("canvas");
   canvas.width = 1080;
   canvas.height = 1350;
@@ -48,7 +48,7 @@ async function createPromptCard(prompt: SharePrompt) {
   const maxWidth = canvas.width - 200;
   context.fillStyle = "#9a9a9a";
   context.font = '32px "Courier New", monospace';
-  context.fillText("today’s prompt", left, 150);
+  context.fillText(eyebrow, left, 150);
 
   context.fillStyle = "#ffffff";
   context.font = '76px "Courier New", monospace';
@@ -77,18 +77,18 @@ async function createPromptCard(prompt: SharePrompt) {
   }
 
   context.fillStyle = "#ffffff";
-  context.font = '34px "Courier New", monospace';
-  context.fillText("jawdroppuh.lol/dailyframe", left, 1235);
+  context.font = '28px "Courier New", monospace';
+  context.fillText("create today @ jawdroppuh.lol/dailyframe", left, 1235);
   return canvasBlob(canvas);
 }
 
-export function SharePromptButton({ prompt }: { prompt: SharePrompt }) {
+export function SharePromptButton({ prompt, label = "share prompt card", eyebrow = "today’s prompt" }: { prompt: SharePrompt; label?: string; eyebrow?: string }) {
   const [status, setStatus] = useState("");
 
   async function share() {
     setStatus("making card…");
     try {
-      const blob = await createPromptCard(prompt);
+      const blob = await createPromptCard(prompt, eyebrow);
       const file = new File([blob], "daily-frame-prompt.png", { type: "image/png" });
       const shareData = { files: [file], title: "Today’s Daily Frame prompt" };
 
@@ -117,7 +117,7 @@ export function SharePromptButton({ prompt }: { prompt: SharePrompt }) {
   return (
     <div className="share-prompt">
       <button className="secondary" type="button" onClick={() => void share()}>
-        share prompt card
+        {label}
       </button>
       {status && <span className="small">{status}</span>}
     </div>

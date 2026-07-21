@@ -6,13 +6,14 @@ import { clearLegacyUserId, getLegacyUserId } from "@/lib/client-user";
 
 export type Account = { id: string; name: string | null; email: string; emailVerified: boolean };
 
-export function AuthForm({ onAuthenticated }: { onAuthenticated: (user: Account) => void }) {
-  const [mode, setMode] = useState<"login" | "signup">("login");
+export function AuthForm({ onAuthenticated, initialMode = "login" }: { onAuthenticated: (user: Account) => void; initialMode?: "login" | "signup" }) {
+  const [mode, setMode] = useState<"login" | "signup">(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [resetRequested, setResetRequested] = useState(false);
+  const [marketingEmails, setMarketingEmails] = useState(false);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -27,6 +28,7 @@ export function AuthForm({ onAuthenticated }: { onAuthenticated: (user: Account)
           email,
           password,
           legacyUserId: mode === "signup" ? getLegacyUserId() : null,
+          marketingEmails: mode === "signup" && marketingEmails,
         }),
       });
       const data = await response.json();
@@ -108,6 +110,16 @@ export function AuthForm({ onAuthenticated }: { onAuthenticated: (user: Account)
               onChange={(event) => setPassword(event.target.value)}
             />
           </label>
+          {mode === "signup" && (
+            <label className="checkbox-label small">
+              <input
+                type="checkbox"
+                checked={marketingEmails}
+                onChange={(event) => setMarketingEmails(event.target.checked)}
+              />
+              <span>you can email me sometimes (reasonable)</span>
+            </label>
+          )}
 
           {error && <p className="form-error">{error}</p>}
 

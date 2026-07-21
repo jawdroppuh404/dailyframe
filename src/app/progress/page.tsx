@@ -12,7 +12,7 @@ export default function ProgressPage() {
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
   const [dates, setDates] = useState<string[]>([]);
-  const [previousPhotos, setPreviousPhotos] = useState<Array<{ dateKey: string; imageUrl: string; caption?: string | null; mood?: string | null }>>([]);
+  const [previousPhotos, setPreviousPhotos] = useState<Array<{ dateKey: string; imageUrl: string; caption?: string | null; mood?: string | null; alternate?: boolean }>>([]);
 
   async function loadProgress(user: Account) {
     setAccount(user);
@@ -77,6 +77,7 @@ export default function ProgressPage() {
                 <img loading="lazy" src={photo.imageUrl} alt={`Your frame from ${photo.dateKey}`} />
                 <div className="photo-history-copy">
                   <strong>{photo.dateKey}</strong>
+                  {photo.alternate && <span className="small">alternate frame · does not affect streak</span>}
                   {photo.caption && <span>{photo.caption}</span>}
                   {photo.mood && <span className="small">{photo.mood}</span>}
                 </div>

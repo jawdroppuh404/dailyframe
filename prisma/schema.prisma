@@ -14,9 +14,11 @@ model User {
   email     String?  @unique
   passwordHash String?
   emailVerifiedAt DateTime?
+  marketingEmails Boolean  @default(false)
   timezone  String   @default("America/New_York")
 
   photos    DailyPhoto[]
+  archivePhotos ArchivePhoto[]
   sessions  Session[]
   authTokens AuthToken[]
 }
@@ -60,6 +62,7 @@ model Prompt {
 
   dailyAssignments DailyPromptAssignment[]
   photos           DailyPhoto[]
+  archivePhotos    ArchivePhoto[]
 }
 
 model DailyPromptAssignment {
@@ -86,4 +89,21 @@ model DailyPhoto {
   prompt   Prompt? @relation(fields: [promptId], references: [id])
 
   @@unique([userId, dateKey])
+}
+
+model ArchivePhoto {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  promptDateKey String
+  imagePath     String
+  caption       String?
+  mood          String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  promptId String
+  prompt   Prompt @relation(fields: [promptId], references: [id])
+
+  @@index([userId, createdAt])
 }

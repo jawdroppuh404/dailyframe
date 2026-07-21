@@ -6,7 +6,7 @@ import type { Account } from "@/components/auth-form";
 import type { Achievement } from "@/lib/achievements";
 import { appPath } from "@/lib/app-path";
 
-export function AccountNav({ account }: { account: Account }) {
+export function AccountNav({ account, showLogout = false }: { account: Account; showLogout?: boolean }) {
   const [achievement, setAchievement] = useState<Achievement | null>(null);
 
   useEffect(() => {
@@ -26,17 +26,16 @@ export function AccountNav({ account }: { account: Account }) {
     <>
       <nav className="nav">
         <a href={appPath()}>today</a>
-        <a href={appPath("/archive")}>archive</a>
         <a href={appPath("/progress")}>progress</a>
         <a href={appPath("/account")}>account</a>
-        <button className="nav-button" type="button" onClick={() => void logout()}>
-          log out
-        </button>
+        <a href={appPath("/archive")}>archive</a>
       </nav>
+      {showLogout && <button className="nav-button account-logout" type="button" onClick={() => void logout()}>
+        log out
+      </button>}
       <div className="account-identity">
         <div className="identity-copy">
-          {account.name && <strong>{account.name}</strong>}
-          <span className="small">{account.email}</span>
+          {account.name ? <strong>{account.name}</strong> : <span className="small">{account.email}</span>}
         </div>
         {achievement && <AchievementBadges achievement={achievement} compact />}
       </div>

@@ -16,6 +16,7 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const email = normalizeEmail(body?.email);
   const password = body?.password;
+  const marketingEmails = body?.marketingEmails === true;
   const legacyUserId =
     typeof body?.legacyUserId === "string" && body.legacyUserId.startsWith("user_")
       ? body.legacyUserId
@@ -46,12 +47,12 @@ export async function POST(request: Request) {
         if (legacy && !legacy.email && !legacy.passwordHash) {
           return tx.user.update({
             where: { id: legacy.id },
-            data: { email, passwordHash },
+            data: { email, passwordHash, marketingEmails },
           });
         }
       }
 
-      return tx.user.create({ data: { email, passwordHash } });
+      return tx.user.create({ data: { email, passwordHash, marketingEmails } });
     });
 
     const session = await createSession(user.id);

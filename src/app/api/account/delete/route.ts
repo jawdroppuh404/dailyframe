@@ -26,13 +26,14 @@ export async function POST(request: Request) {
     select: {
       passwordHash: true,
       photos: { select: { imagePath: true } },
+      archivePhotos: { select: { imagePath: true } },
     },
   });
   if (!record?.passwordHash || !(await verifyPassword(body.password, record.passwordHash))) {
     return NextResponse.json({ error: "Incorrect password." }, { status: 401 });
   }
 
-  const privatePaths = record.photos
+  const privatePaths = [...record.photos, ...record.archivePhotos]
     .map((photo) => photo.imagePath)
     .filter((pathname) => !pathname.startsWith("https://"));
   if (privatePaths.length) {

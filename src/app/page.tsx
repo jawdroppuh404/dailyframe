@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AccountNav } from "@/components/account-nav";
-import { Account, AuthForm } from "@/components/auth-form";
+import { Account } from "@/components/auth-form";
+import { SharePhotoButton } from "@/components/share-photo-button";
 import { SharePromptButton } from "@/components/share-prompt-button";
-import { VerificationGate } from "@/components/verification-gate";
 import { appPath } from "@/lib/app-path";
+import { MOODS, optimizePhoto } from "@/lib/photo-client";
 
 type Prompt = {
   id: string;
@@ -20,6 +21,7 @@ type Photo =
       caption?: string | null;
       mood?: string | null;
       promptId?: string | null;
+      guest?: boolean;
     }
   | null;
 
@@ -27,64 +29,6 @@ type RandomFrame = {
   dateKey: string;
   prompt: Prompt;
 };
-
-function isHeicLike(file: File) {
-  const name = file.name.toLowerCase();
-  return (
-    file.type === "image/heic" ||
-    file.type === "image/heif" ||
-    name.endsWith(".heic") ||
-    name.endsWith(".heif")
-  );
-}
-
-async function heicToJpeg(file: File): Promise<File> {
-  const { default: heic2any } = await import("heic2any");
-  const out = (await heic2any({
-    blob: file,
-    toType: "image/jpeg",
-    quality: 0.9,
-  })) as Blob;
-  const baseName = file.name.replace(/\.(heic|heif)$/i, "");
-  return new File([out], `${baseName}.jpg`, { type: "image/jpeg" });
-}
-
-const MAX_PHOTO_DIMENSION = 1600;
-const JPEG_QUALITY = 0.8;
-
-async function optimizePhoto(file: File): Promise<File> {
-  const objectUrl = URL.createObjectURL(file);
-  const photo = new Image();
-  try {
-    await new Promise<void>((resolve, reject) => {
-      photo.onload = () => resolve();
-      photo.onerror = () => reject(new Error("Unable to read this photo."));
-      photo.src = objectUrl;
-    });
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
-
-  const scale = Math.min(1, MAX_PHOTO_DIMENSION / Math.max(photo.naturalWidth, photo.naturalHeight));
-  const width = Math.max(1, Math.round(photo.naturalWidth * scale));
-  const height = Math.max(1, Math.round(photo.naturalHeight * scale));
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const context = canvas.getContext("2d");
-  if (!context) throw new Error("Unable to prepare this photo.");
-  context.drawImage(photo, 0, 0, width, height);
-
-  const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (result) => result ? resolve(result) : reject(new Error("Unable to compress this photo.")),
-      "image/jpeg",
-      JPEG_QUALITY,
-    );
-  });
-  const baseName = file.name.replace(/\.[^.]+$/, "").slice(0, 100) || "photo";
-  return new File([blob], `${baseName}.jpg`, { type: "image/jpeg" });
-}
 
 export default function TodayPage() {
   const [account, setAccount] = useState<Account | null | undefined>(undefined);
@@ -100,6 +44,8 @@ export default function TodayPage() {
   const [status, setStatus] = useState("");
   const [randomFrame, setRandomFrame] = useState<RandomFrame | null>(null);
   const [loadingRandomFrame, setLoadingRandomFrame] = useState(false);
+  const [showPhotoCard, setShowPhotoCard] = useState(false);
+  const guestPhotoUrlRef = useRef<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   async function loadToday() {
@@ -107,10 +53,6 @@ export default function TodayPage() {
     setStatus("");
     try {
       const response = await fetch(appPath("/api/today"), { cache: "no-store" });
-      if (response.status === 401) {
-        setAccount(null);
-        return;
-      }
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Unable to load today.");
 
@@ -131,13 +73,16 @@ export default function TodayPage() {
       .then((response) => response.json())
       .then((data) => {
         setAccount(data.user ?? null);
-        if (data.user?.emailVerified) return loadToday();
-        setLoading(false);
+        return loadToday();
       })
       .catch(() => {
         setAccount(null);
-        setLoading(false);
+        void loadToday();
       });
+  }, []);
+
+  useEffect(() => () => {
+    if (guestPhotoUrlRef.current) URL.revokeObjectURL(guestPhotoUrlRef.current);
   }, []);
 
   async function getStuckTip() {
@@ -163,19 +108,23 @@ export default function TodayPage() {
 
   async function doUpload() {
     if (!selectedFile) return setStatus("no file selected");
-    if (!account) return setStatus("log in before uploading");
     setUploading(true);
     setStatus("preparing photo…");
 
     try {
-      let file = selectedFile;
-      if (isHeicLike(file)) {
-        setStatus("converting HEIC to JPEG…");
-        file = await heicToJpeg(file);
-      }
-
       setStatus("resizing and compressing photo…");
-      file = await optimizePhoto(file);
+      const file = await optimizePhoto(selectedFile);
+
+      if (!account?.emailVerified) {
+        if (guestPhotoUrlRef.current) URL.revokeObjectURL(guestPhotoUrlRef.current);
+        const localUrl = URL.createObjectURL(file);
+        guestPhotoUrlRef.current = localUrl;
+        setPhoto({ imageUrl: localUrl, caption, mood, promptId: prompt?.id ?? null, guest: true });
+        setSelectedFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        setStatus("preview only — this photo and progress were not saved");
+        return;
+      }
 
       setStatus("uploading privately…");
       const { upload } = await import("@vercel/blob/client");
@@ -215,21 +164,17 @@ export default function TodayPage() {
   }
 
   if (account === undefined || loading) return <main className="container">loading…</main>;
-  if (!account) {
-    return (
-      <AuthForm
-        onAuthenticated={(user) => {
-          setAccount(user);
-          if (user.emailVerified) void loadToday();
-        }}
-      />
-    );
-  }
-  if (!account.emailVerified) return <VerificationGate email={account.email} />;
 
   return (
     <main className="container">
-      <AccountNav account={account} />
+      {account ? <AccountNav account={account} /> : (
+        <nav className="nav public-nav">
+          <a href={appPath()}>today</a>
+          <a href={appPath("/progress")}>progress</a>
+          <a href={appPath("/account")}>account</a>
+          <a href={appPath("/archive")}>archive</a>
+        </nav>
+      )}
       <div className="h1">Daily Frame</div>
       <div className="today-date-row">
         <p className="meta">today: {todayKey}</p>
@@ -239,12 +184,22 @@ export default function TodayPage() {
       </div>
 
       {randomFrame && (
-        <section className="card random-frame-card">
+        <section
+          className="card random-frame-card clickable-card"
+          onClick={(event) => {
+            if ((event.target as HTMLElement).closest("button, a")) return;
+            window.location.href = appPath(`/random-upload?dateKey=${encodeURIComponent(randomFrame.dateKey)}`);
+          }}
+        >
           <button className="gear-help-close" type="button" aria-label="Close random frame" onClick={() => setRandomFrame(null)}>×</button>
           <div className="label">from {randomFrame.dateKey}</div>
           <div className="prompt">{randomFrame.prompt.title}</div>
           {randomFrame.prompt.constraint && <><div className="label">constraint</div><p className="value">{randomFrame.prompt.constraint}</p></>}
           {randomFrame.prompt.twist && <><div className="label">optional twist</div><p className="value">{randomFrame.prompt.twist}</p></>}
+          <div className="random-frame-actions">
+            <SharePromptButton prompt={randomFrame.prompt} label="share random frame" eyebrow="random frame" />
+            <a className="small" href={appPath(`/random-upload?dateKey=${encodeURIComponent(randomFrame.dateKey)}`)}>tap the card to answer this frame</a>
+          </div>
         </section>
       )}
 
@@ -276,13 +231,22 @@ export default function TodayPage() {
       <section style={{ marginTop: 18 }}>
         <div className="label">today’s private photo</div>
         {photo?.imageUrl ? (
-          <div style={{ marginTop: 10 }}>
+          <div className="today-photo-trigger" style={{ marginTop: 10 }} role="button" tabIndex={0} onClick={() => setShowPhotoCard(true)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") setShowPhotoCard(true); }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img className="photo" src={photo.imageUrl} alt="today" />
-            <p className="small">only your signed-in account can load this photo.</p>
+            <p className="small">{photo.guest ? "local preview only — tap to open share card." : "only your signed-in account can load this photo. tap to open card."}</p>
           </div>
         ) : (
           <p className="small">no photo yet. upload one to lock in your day.</p>
+        )}
+
+        {!account?.emailVerified && (
+          <aside className="guest-warning">
+            <strong>your progress and photo will not be saved.</strong>
+            <span className="small">if you want to keep your streak, then {account
+              ? <a href={appPath("/account")}>confirm your email</a>
+              : <a href={appPath("/account?mode=signup")}>create an account</a>}.</span>
+          </aside>
         )}
 
         <div className="grid" style={{ marginTop: 12 }}>
@@ -294,16 +258,7 @@ export default function TodayPage() {
             mood (optional)
             <select value={mood} onChange={(event) => setMood(event.target.value)}>
               <option value="">—</option>
-              <option value="Calm">calm</option>
-              <option value="Moody">moody</option>
-              <option value="Joyful">joyful</option>
-              <option value="Curious">curious</option>
-              <option value="Gritty">gritty</option>
-              <option value="Reflective">reflective</option>
-              <option value="Energetic">energetic</option>
-              <option value="Melancholy">melancholy</option>
-              <option value="Playful">playful</option>
-              <option value="Dreamy">dreamy</option>
+              {MOODS.map((item) => <option value={item} key={item}>{item.toLowerCase()}</option>)}
             </select>
           </label>
           <div className="label">
@@ -321,13 +276,29 @@ export default function TodayPage() {
                 disabled={!selectedFile || uploading}
                 onClick={() => void doUpload()}
               >
-                {uploading ? "uploading…" : "upload privately"}
+                {uploading ? "working…" : account?.emailVerified ? "upload privately" : "preview photo"}
               </button>
-              {selectedFile && <p className="small">selected: <em>{selectedFile.name}</em> · resized to 1600px and compressed before upload</p>}
+              {selectedFile && <p className="small">selected: <em>{selectedFile.name}</em> · resized to 1600px and compressed before use</p>}
             </div>
           </div>
         </div>
       </section>
+
+      {showPhotoCard && photo?.imageUrl && prompt && (
+        <div className="modal-backdrop photo-card-backdrop" role="presentation" onClick={() => setShowPhotoCard(false)}>
+          <article className="photo-detail-card" role="dialog" aria-modal="true" aria-label="Today’s photo card" onClick={(event) => event.stopPropagation()}>
+            <button className="gear-help-close" type="button" aria-label="Close" onClick={() => setShowPhotoCard(false)}>×</button>
+            <div className="label">today’s frame</div>
+            <div className="photo-card-prompt">{prompt.title}</div>
+            {prompt.constraint && <><div className="label">constraint</div><p className="value">{prompt.constraint}</p></>}
+            {prompt.twist && <><div className="label">optional twist</div><p className="value">{prompt.twist}</p></>}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={photo.imageUrl} alt="Your response to today’s frame" />
+            <SharePhotoButton prompt={prompt} imageUrl={photo.imageUrl} />
+            <p className="photo-card-footer">create today @ jawdroppuh.lol/dailyframe</p>
+          </article>
+        </div>
+      )}
     </main>
   );
 }
