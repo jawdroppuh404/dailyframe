@@ -1,6 +1,7 @@
 "use client";
 
 import { Achievement, CameraIcon, RankIcon } from "@/lib/achievements";
+import { appPath } from "@/lib/app-path";
 
 function RankMark({ kind }: { kind: RankIcon }) {
   if (kind === "aperture") return <><circle cx="32" cy="32" r="22" /><path d="M32 10l10 17-10 17-10-17zM14 22h18M32 42h18" /></>;
@@ -25,9 +26,9 @@ function CameraMark({ kind }: { kind: CameraIcon }) {
   );
 }
 
-function Badge({ label, value, children }: { label: string; value: string; children: React.ReactNode }) {
-  return (
-    <div className="achievement-badge">
+function Badge({ label, value, children, href }: { label: string; value: string; children: React.ReactNode; href?: string }) {
+  const content = (
+    <>
       <svg viewBox="0 0 64 64" role="img" aria-label={`${label}: ${value}`}>
         <g fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           {children}
@@ -37,15 +38,19 @@ function Badge({ label, value, children }: { label: string; value: string; child
         <div className="label">{label}</div>
         <div className="badge-name">{value}</div>
       </div>
-    </div>
+    </>
   );
+  return href
+    ? <a className="achievement-badge" href={href} aria-label={`View ${label} progress: ${value}`}>{content}</a>
+    : <div className="achievement-badge">{content}</div>;
 }
 
 export function AchievementBadges({ achievement, compact = false }: { achievement: Achievement; compact?: boolean }) {
+  const progressHref = compact ? appPath("/account?help=gear") : undefined;
   return (
     <div className={`achievement-badges${compact ? " compact" : ""}`}>
-      <Badge label="rank" value={achievement.rank}><RankMark kind={achievement.rankIcon} /></Badge>
-      <Badge label="camera" value={achievement.gear}><CameraMark kind={achievement.cameraIcon} /></Badge>
+      <Badge label="rank" value={achievement.rank} href={progressHref}><RankMark kind={achievement.rankIcon} /></Badge>
+      <Badge label="camera" value={achievement.gear} href={progressHref}><CameraMark kind={achievement.cameraIcon} /></Badge>
     </div>
   );
 }

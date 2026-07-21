@@ -18,7 +18,7 @@ export async function GET(req: Request) {
 
   const photos = await prisma.dailyPhoto.findMany({
     where: { userId: user.id },
-    select: { dateKey: true },
+    select: { dateKey: true, caption: true, mood: true },
     orderBy: { dateKey: "desc" },
   });
 
@@ -32,6 +32,15 @@ export async function GET(req: Request) {
       streak,
       bestStreak,
       dateKeysDesc,
+      previousPhotos: photos
+        .filter((photo) => photo.dateKey < todayKey)
+        .slice(0, 28)
+        .map((photo) => ({
+          dateKey: photo.dateKey,
+          caption: photo.caption,
+          mood: photo.mood,
+          imageUrl: `/dailyframe/api/photo/file?dateKey=${encodeURIComponent(photo.dateKey)}`,
+        })),
       achievement: achievementForStreak(bestStreak),
       upcomingAchievements: upcomingAchievements(bestStreak),
     },

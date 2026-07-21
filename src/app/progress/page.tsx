@@ -12,6 +12,7 @@ export default function ProgressPage() {
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
   const [dates, setDates] = useState<string[]>([]);
+  const [previousPhotos, setPreviousPhotos] = useState<Array<{ dateKey: string; imageUrl: string; caption?: string | null; mood?: string | null }>>([]);
 
   async function loadProgress(user: Account) {
     setAccount(user);
@@ -23,6 +24,7 @@ export default function ProgressPage() {
     setStreak(data.streak ?? 0);
     setBestStreak(data.bestStreak ?? 0);
     setDates(data.dateKeysDesc ?? []);
+    setPreviousPhotos(data.previousPhotos ?? []);
   }
 
   useEffect(() => {
@@ -64,6 +66,27 @@ export default function ProgressPage() {
           </div>
         ))}
       </div>
+
+      <section className="progress-photos">
+        <div className="label">previous photos</div>
+        {previousPhotos.length ? (
+          <div className="photo-history-grid">
+            {previousPhotos.map((photo) => (
+              <article className="photo-history-card" key={photo.dateKey}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img loading="lazy" src={photo.imageUrl} alt={`Your frame from ${photo.dateKey}`} />
+                <div className="photo-history-copy">
+                  <strong>{photo.dateKey}</strong>
+                  {photo.caption && <span>{photo.caption}</span>}
+                  {photo.mood && <span className="small">{photo.mood}</span>}
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="small">your earlier frames will appear here.</p>
+        )}
+      </section>
     </main>
   );
 }

@@ -31,6 +31,7 @@ export default function AccountPage() {
   const [displayName, setDisplayName] = useState("");
   const [profileStatus, setProfileStatus] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
+  const [showGearHelp, setShowGearHelp] = useState(false);
 
   useEffect(() => {
     void fetch(appPath("/api/auth/session"), { cache: "no-store" })
@@ -42,6 +43,10 @@ export default function AccountPage() {
   useEffect(() => {
     if (account) setDisplayName(account.name ?? "");
   }, [account]);
+
+  useEffect(() => {
+    setShowGearHelp(new URLSearchParams(window.location.search).get("help") === "gear");
+  }, []);
 
   useEffect(() => {
     if (!account?.emailVerified) return;
@@ -143,6 +148,14 @@ export default function AccountPage() {
       <AccountNav account={account} />
       <div className="h1">My Account</div>
       <p className="meta">your streak, status, and account controls.</p>
+
+      {showGearHelp && (
+        <aside className="gear-help" role="dialog" aria-label="Gear help">
+          <button className="gear-help-close" type="button" aria-label="Close" onClick={() => setShowGearHelp(false)}>×</button>
+          <strong>Upgrade your gear with a longer streak</strong>
+          <p className="small">Post one private frame each day to unlock the next rank and camera.</p>
+        </aside>
+      )}
 
       {account.emailVerified && progress ? (
         <section className="card achievement-card">

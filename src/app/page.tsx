@@ -23,6 +23,11 @@ type Photo =
     }
   | null;
 
+type RandomFrame = {
+  dateKey: string;
+  prompt: Prompt;
+};
+
 function isHeicLike(file: File) {
   const name = file.name.toLowerCase();
   return (
@@ -93,6 +98,8 @@ export default function TodayPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [status, setStatus] = useState("");
+  const [randomFrame, setRandomFrame] = useState<RandomFrame | null>(null);
+  const [loadingRandomFrame, setLoadingRandomFrame] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   async function loadToday() {
@@ -137,6 +144,21 @@ export default function TodayPage() {
     const response = await fetch(appPath("/api/stuck"), { cache: "no-store" });
     const data = await response.json();
     if (response.ok) setTip(data.tip ?? "");
+  }
+
+  async function showRandomFrame() {
+    setLoadingRandomFrame(true);
+    setStatus("");
+    try {
+      const response = await fetch(appPath("/api/random-frame"), { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Unable to find an earlier frame.");
+      setRandomFrame(data);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Unable to find an earlier frame.");
+    } finally {
+      setLoadingRandomFrame(false);
+    }
   }
 
   async function doUpload() {
@@ -209,7 +231,22 @@ export default function TodayPage() {
     <main className="container">
       <AccountNav account={account} />
       <div className="h1">Daily Frame</div>
-      <p className="meta">today: {todayKey}</p>
+      <div className="today-date-row">
+        <p className="meta">today: {todayKey}</p>
+        <button className="secondary random-frame-button" type="button" disabled={loadingRandomFrame} onClick={() => void showRandomFrame()}>
+          {loadingRandomFrame ? "finding…" : "random frame"}
+        </button>
+      </div>
+
+      {randomFrame && (
+        <section className="card random-frame-card">
+          <button className="gear-help-close" type="button" aria-label="Close random frame" onClick={() => setRandomFrame(null)}>×</button>
+          <div className="label">from {randomFrame.dateKey}</div>
+          <div className="prompt">{randomFrame.prompt.title}</div>
+          {randomFrame.prompt.constraint && <><div className="label">constraint</div><p className="value">{randomFrame.prompt.constraint}</p></>}
+          {randomFrame.prompt.twist && <><div className="label">optional twist</div><p className="value">{randomFrame.prompt.twist}</p></>}
+        </section>
+      )}
 
       {status && (
         <section className="card status-card">
@@ -262,6 +299,11 @@ export default function TodayPage() {
               <option value="Joyful">joyful</option>
               <option value="Curious">curious</option>
               <option value="Gritty">gritty</option>
+              <option value="Reflective">reflective</option>
+              <option value="Energetic">energetic</option>
+              <option value="Melancholy">melancholy</option>
+              <option value="Playful">playful</option>
+              <option value="Dreamy">dreamy</option>
             </select>
           </label>
           <div className="label">
