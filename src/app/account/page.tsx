@@ -12,6 +12,7 @@ type StreakProgress = {
   streak: number;
   bestStreak: number;
   achievement: Achievement;
+  rankRoadmap: Achievement[];
   upcomingAchievements: Achievement[];
 };
 
@@ -171,14 +172,20 @@ export default function AccountPage() {
             </p>
           )}
           <div className="upcoming-ranks">
-            <div className="label">upcoming ranks</div>
-            {progress.upcomingAchievements.map((item) => (
+            <div className="label">rank ladder</div>
+            {progress.rankRoadmap.map((item) => (
               <div className="upcoming-rank" key={item.days}>
                 <div>
                   <strong>{item.rank}</strong>
                   <span>{item.gear}</span>
                 </div>
-                <span>{item.days - progress.bestStreak} days</span>
+                <span>
+                  {item.days === progress.achievement.days
+                    ? "current"
+                    : item.days < progress.achievement.days
+                      ? "unlocked"
+                      : `${item.days - progress.bestStreak} days`}
+                </span>
               </div>
             ))}
           </div>

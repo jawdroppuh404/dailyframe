@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { dateKeyInTZ } from "@/lib/date";
-import { achievementForStreak, upcomingAchievements } from "@/lib/achievements";
+import { achievementForStreak, achievementRoadmap, upcomingAchievements } from "@/lib/achievements";
 import { computeLongestStreak, computeStreak } from "@/lib/streak";
 import { getAuthenticatedUser } from "@/lib/auth";
 
@@ -34,7 +34,6 @@ export async function GET(req: Request) {
       dateKeysDesc,
       previousPhotos: photos
         .filter((photo) => photo.dateKey < todayKey)
-        .slice(0, 28)
         .map((photo) => ({
           dateKey: photo.dateKey,
           caption: photo.caption,
@@ -42,6 +41,7 @@ export async function GET(req: Request) {
           imageUrl: `/dailyframe/api/photo/file?dateKey=${encodeURIComponent(photo.dateKey)}`,
         })),
       achievement: achievementForStreak(bestStreak),
+      rankRoadmap: achievementRoadmap(bestStreak),
       upcomingAchievements: upcomingAchievements(bestStreak),
     },
     { headers: { "Cache-Control": "no-store, max-age=0" } }

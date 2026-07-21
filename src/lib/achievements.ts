@@ -59,3 +59,11 @@ export function upcomingAchievements(bestStreak: number, limit = 6) {
   }
   return upcoming.slice(0, limit);
 }
+
+export function achievementRoadmap(bestStreak: number) {
+  const annualThrough = Math.max(10, Math.floor(bestStreak / 365) + 3);
+  return [
+    ...FIXED_ACHIEVEMENTS,
+    ...Array.from({ length: annualThrough - 5 }, (_, index) => annualAchievement(index + 6)),
+  ];
+}
