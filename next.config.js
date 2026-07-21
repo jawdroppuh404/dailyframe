@@ -5,7 +5,7 @@ const nextConfig = {
     return [
       {
         source: '/',
-        destination: '/dailyframe',
+        destination: 'https://jawdroppuh.lol/dailyframe',
         permanent: false,
         basePath: false,
       },
