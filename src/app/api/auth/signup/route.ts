@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     }
     return NextResponse.json(
       {
-        user: { id: user.id, email: user.email, emailVerified: false },
+        user: { id: user.id, name: user.name, email: user.email, emailVerified: false },
         emailSent,
       },
       { headers: { "Set-Cookie": sessionCookie(session.token, session.expiresAt) } }

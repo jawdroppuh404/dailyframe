@@ -28,6 +28,9 @@ export default function AccountPage() {
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [feedbackStatus, setFeedbackStatus] = useState("");
   const [sendingFeedback, setSendingFeedback] = useState(false);
+  const [displayName, setDisplayName] = useState("");
+  const [profileStatus, setProfileStatus] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
 
   useEffect(() => {
     void fetch(appPath("/api/auth/session"), { cache: "no-store" })
@@ -35,6 +38,10 @@ export default function AccountPage() {
       .then((data) => setAccount(data.user ?? null))
       .catch(() => setAccount(null));
   }, []);
+
+  useEffect(() => {
+    if (account) setDisplayName(account.name ?? "");
+  }, [account]);
 
   useEffect(() => {
     if (!account?.emailVerified) return;
@@ -98,11 +105,33 @@ export default function AccountPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Unable to send feedback.");
       setFeedbackMessage("");
-      setFeedbackStatus("sent to info@jawdroppuh.lol ✓");
+      setFeedbackStatus("sent ✓");
     } catch (error) {
       setFeedbackStatus(error instanceof Error ? error.message : "Unable to send feedback.");
     } finally {
       setSendingFeedback(false);
+    }
+  }
+
+  async function saveProfile(event: FormEvent) {
+    event.preventDefault();
+    setSavingProfile(true);
+    setProfileStatus("");
+    try {
+      const response = await fetch(appPath("/api/account/profile"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: displayName }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Unable to save display name.");
+      setDisplayName(data.name);
+      setAccount((current) => current ? { ...current, name: data.name } : current);
+      setProfileStatus("saved ✓");
+    } catch (error) {
+      setProfileStatus(error instanceof Error ? error.message : "Unable to save display name.");
+    } finally {
+      setSavingProfile(false);
     }
   }
 
@@ -111,7 +140,7 @@ export default function AccountPage() {
 
   return (
     <main className="container">
-      <AccountNav email={account.email} />
+      <AccountNav account={account} />
       <div className="h1">My Account</div>
       <p className="meta">your streak, status, and account controls.</p>
 
@@ -152,6 +181,25 @@ export default function AccountPage() {
       )}
 
       <section className="card grid account-section">
+        <form className="grid" onSubmit={saveProfile}>
+          <label className="label">
+            display name
+            <input
+              required
+              minLength={2}
+              maxLength={40}
+              autoComplete="nickname"
+              value={displayName}
+              placeholder="how you want to be known"
+              onChange={(event) => setDisplayName(event.target.value)}
+            />
+          </label>
+          {profileStatus && <p className={profileStatus.includes("✓") ? "small" : "form-error"}>{profileStatus}</p>}
+          <button className="secondary" type="submit" disabled={savingProfile || displayName.trim().length < 2}>
+            {savingProfile ? "saving…" : "save display name"}
+          </button>
+        </form>
+        <hr />
         <div>
           <div className="label">email</div>
           <p className="value">{account.email}</p>
@@ -170,7 +218,7 @@ export default function AccountPage() {
 
       <section className="card account-section feedback-card">
         <div className="label">feedback</div>
-        <p className="small">Send a comment or report a bug. It goes to info@jawdroppuh.lol.</p>
+        <p className="small">Send a comment or report a bug.</p>
         {account.emailVerified ? (
           <form className="grid" onSubmit={sendFeedback}>
             <label className="label">

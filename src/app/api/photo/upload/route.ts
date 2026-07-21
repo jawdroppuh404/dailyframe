@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { del } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { dateKeyInTZ } from "@/lib/date";
 import { getAuthenticatedUser } from "@/lib/auth";
@@ -22,6 +23,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid private photo path." }, { status: 400 });
   }
 
+  const previous = await prisma.dailyPhoto.findUnique({
+    where: { userId_dateKey: { userId: user.id, dateKey: todayKey } },
+    select: { imagePath: true },
+  });
+
   const saved = await prisma.dailyPhoto.upsert({
     where: { userId_dateKey: { userId: user.id, dateKey: todayKey } },
     update: { imagePath: pathname, caption, mood, promptId },
@@ -34,6 +40,17 @@ export async function POST(req: Request) {
       promptId,
     },
   });
+
+  if (previous && previous.imagePath !== pathname && !previous.imagePath.startsWith("https://")) {
+    const token = process.env.PRIVATE_BLOB_READ_WRITE_TOKEN;
+    if (token) {
+      try {
+        await del(previous.imagePath, { token });
+      } catch (error) {
+        console.error("Unable to remove replaced private photo", error);
+      }
+    }
+  }
 
   return NextResponse.json({ ok: true, photoId: saved.id });
 }

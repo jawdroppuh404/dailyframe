@@ -4,7 +4,7 @@ import { FormEvent, useState } from "react";
 import { appPath } from "@/lib/app-path";
 import { clearLegacyUserId, getLegacyUserId } from "@/lib/client-user";
 
-export type Account = { id: string; email: string; emailVerified: boolean };
+export type Account = { id: string; name: string | null; email: string; emailVerified: boolean };
 
 export function AuthForm({ onAuthenticated }: { onAuthenticated: (user: Account) => void }) {
   const [mode, setMode] = useState<"login" | "signup">("login");

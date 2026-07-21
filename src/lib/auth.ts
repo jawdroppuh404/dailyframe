@@ -7,6 +7,7 @@ const SESSION_DAYS = 30;
 
 export type AuthenticatedUser = {
   id: string;
+  name: string | null;
   email: string;
   emailVerified: boolean;
   timezone: string;
@@ -88,7 +89,7 @@ export async function getAuthenticatedUser(
     select: {
       expiresAt: true,
       user: {
-        select: { id: true, email: true, emailVerifiedAt: true, timezone: true },
+        select: { id: true, name: true, email: true, emailVerifiedAt: true, timezone: true },
       },
     },
   });
@@ -100,6 +101,7 @@ export async function getAuthenticatedUser(
 
   return {
     id: session.user.id,
+    name: session.user.name,
     email: session.user.email,
     emailVerified: Boolean(session.user.emailVerifiedAt),
     timezone: session.user.timezone,
@@ -129,6 +131,13 @@ export function normalizeEmail(value: unknown) {
   const email = value.trim().toLowerCase();
   if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
   return email;
+}
+
+export function normalizeDisplayName(value: unknown) {
+  if (typeof value !== "string") return null;
+  const name = value.trim().replace(/\s+/g, " ");
+  if (name.length < 2 || name.length > 40 || /[\u0000-\u001f\u007f]/.test(name)) return null;
+  return name;
 }
 
 export function validPassword(value: unknown): value is string {

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   hashPassword,
   hashOpaqueToken,
+  normalizeDisplayName,
   normalizeEmail,
   validPassword,
   verifyPassword,
@@ -17,6 +18,8 @@ async function main() {
   assert.equal(await verifyPassword("the-wrong-password", storedHash), false);
   assert.equal(normalizeEmail("  Person@Example.COM "), "person@example.com");
   assert.equal(normalizeEmail("not-an-email"), null);
+  assert.equal(normalizeDisplayName("  Diane   Arbus  "), "Diane Arbus");
+  assert.equal(normalizeDisplayName("x"), null);
   assert.equal(validPassword("short"), false);
   assert.equal(validPassword(password), true);
   assert.equal(hashOpaqueToken("same-token"), hashOpaqueToken("same-token"));

@@ -29,6 +29,7 @@ export async function POST(request: Request) {
     {
       user: {
         id: user.id,
+        name: user.name,
         email: user.email,
         emailVerified: Boolean(user.emailVerifiedAt),
       },

@@ -5,7 +5,7 @@ import { dateKeyInTZ } from "@/lib/date";
 
 export const runtime = "nodejs";
 
-const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 
 export async function POST(request: Request) {
   const token = process.env.PRIVATE_BLOB_READ_WRITE_TOKEN;

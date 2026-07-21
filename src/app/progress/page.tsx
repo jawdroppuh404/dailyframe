@@ -49,7 +49,7 @@ export default function ProgressPage() {
 
   return (
     <main className="container">
-      <AccountNav email={account.email} />
+      <AccountNav account={account} />
       <div className="h1">Your Progress</div>
       <p className="meta">current streak: {streak} · personal best: {bestStreak}</p>
       <div className="label">last 28 days</div>

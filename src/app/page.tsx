@@ -44,6 +44,43 @@ async function heicToJpeg(file: File): Promise<File> {
   return new File([out], `${baseName}.jpg`, { type: "image/jpeg" });
 }
 
+const MAX_PHOTO_DIMENSION = 1600;
+const JPEG_QUALITY = 0.8;
+
+async function optimizePhoto(file: File): Promise<File> {
+  const objectUrl = URL.createObjectURL(file);
+  const photo = new Image();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      photo.onload = () => resolve();
+      photo.onerror = () => reject(new Error("Unable to read this photo."));
+      photo.src = objectUrl;
+    });
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+
+  const scale = Math.min(1, MAX_PHOTO_DIMENSION / Math.max(photo.naturalWidth, photo.naturalHeight));
+  const width = Math.max(1, Math.round(photo.naturalWidth * scale));
+  const height = Math.max(1, Math.round(photo.naturalHeight * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Unable to prepare this photo.");
+  context.drawImage(photo, 0, 0, width, height);
+
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (result) => result ? resolve(result) : reject(new Error("Unable to compress this photo.")),
+      "image/jpeg",
+      JPEG_QUALITY,
+    );
+  });
+  const baseName = file.name.replace(/\.[^.]+$/, "").slice(0, 100) || "photo";
+  return new File([blob], `${baseName}.jpg`, { type: "image/jpeg" });
+}
+
 export default function TodayPage() {
   const [account, setAccount] = useState<Account | null | undefined>(undefined);
   const [loading, setLoading] = useState(true);
@@ -115,6 +152,9 @@ export default function TodayPage() {
         file = await heicToJpeg(file);
       }
 
+      setStatus("resizing and compressing photo…");
+      file = await optimizePhoto(file);
+
       setStatus("uploading privately…");
       const { upload } = await import("@vercel/blob/client");
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-").slice(-120) || "photo.jpg";
@@ -167,7 +207,7 @@ export default function TodayPage() {
 
   return (
     <main className="container">
-      <AccountNav email={account.email} />
+      <AccountNav account={account} />
       <div className="h1">Daily Frame</div>
       <p className="meta">today: {todayKey}</p>
 
@@ -241,7 +281,7 @@ export default function TodayPage() {
               >
                 {uploading ? "uploading…" : "upload privately"}
               </button>
-              {selectedFile && <p className="small">selected: <em>{selectedFile.name}</em></p>}
+              {selectedFile && <p className="small">selected: <em>{selectedFile.name}</em> · resized to 1600px and compressed before upload</p>}
             </div>
           </div>
         </div>

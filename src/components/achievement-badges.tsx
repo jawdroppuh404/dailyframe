@@ -41,9 +41,9 @@ function Badge({ label, value, children }: { label: string; value: string; child
   );
 }
 
-export function AchievementBadges({ achievement }: { achievement: Achievement }) {
+export function AchievementBadges({ achievement, compact = false }: { achievement: Achievement; compact?: boolean }) {
   return (
-    <div className="achievement-badges">
+    <div className={`achievement-badges${compact ? " compact" : ""}`}>
       <Badge label="rank" value={achievement.rank}><RankMark kind={achievement.rankIcon} /></Badge>
       <Badge label="camera" value={achievement.gear}><CameraMark kind={achievement.cameraIcon} /></Badge>
     </div>

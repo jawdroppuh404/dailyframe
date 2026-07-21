@@ -58,7 +58,13 @@ hr {
   color: var(--text2);
 }
 
-.account-email { margin: -8px 0 16px; }
+.account-identity { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: -8px 0 18px; }
+.identity-copy { display: grid; gap: 3px; min-width: 0; overflow-wrap: anywhere; }
+.achievement-badges.compact { display: flex; flex: 1; justify-content: flex-end; gap: 6px; }
+.achievement-badges.compact .achievement-badge { display: flex; align-items: center; gap: 7px; padding: 6px 8px; max-width: 190px; }
+.achievement-badges.compact .achievement-badge svg { width: 28px; height: 28px; flex: 0 0 28px; }
+.achievement-badges.compact .label { margin: 0; font-size: 9px; }
+.achievement-badges.compact .badge-name { margin: 1px 0 0; font-size: 10px; }
 .auth-shell { padding-top: 10vh; }
 .auth-card { margin-top: 20px; }
 .auth-tabs { display: flex; gap: 8px; }
@@ -109,6 +115,9 @@ hr {
 
 @media (max-width: 520px) {
   .achievement-badges { grid-template-columns: 1fr; }
+  .account-identity { align-items: flex-start; flex-direction: column; }
+  .achievement-badges.compact { width: 100%; justify-content: flex-start; }
+  .achievement-badges.compact .achievement-badge { flex: 1; }
 }
 
 .card {
